@@ -319,6 +319,10 @@ let AIR = null; try { AIR = require('./air.cjs').startAir({ DATA }); } catch (e)
 ipcMain.handle('airHot', async (e, force) => { if (force) await AIR?.refresh(true).catch(() => {}); return AIR?.hot() || { list: [] }; });
 ipcMain.handle('airCheck', (e, u) => AIR?.checkUrl(String(u || '').slice(0, 300)) || { lvl: 0, why: [] });
 ipcMain.handle('airState', () => readJSON(path.join(DATA, 'air_state.json'), {}));
+/* 她 11/3：实时日志 — 用户在雷达里看后台在跑什么（只读最后一段，金钥类字串一律遮掉） */
+ipcMain.handle('logTail', (e, n) => { try { const f = path.join(DATA, 'watch.log'); const st = fs.statSync(f); const len = Math.min(st.size, 160 * 1024); const fd = fs.openSync(f, 'r'); const b = Buffer.alloc(len); fs.readSync(fd, b, 0, len, st.size - len); fs.closeSync(fd);
+  let L = b.toString('utf8').split(/\r?\n/).filter(Boolean); if (st.size > len) L.shift(); L = L.slice(-Math.max(20, Math.min(600, Number(n) || 300)));
+  return L.map((x) => x.replace(/\b\d{8,10}:AA[\w-]{30,}\b/g, '[TG金钥]').replace(/github_pat_[\w]{20,}/g, '[金钥]').replace(/\b(sk|pk|api|key|token|secret)[-_]?[\w-]{16,}/gi, '[金钥]').replace(/0x[0-9a-fA-F]{64}\b/g, (h) => h.slice(0, 8) + '…' + h.slice(-4)).replace(/(私钥|私鑰|助记词|助記詞|mnemonic|private ?key)\S*/gi, '[已隐藏]')); } catch { return []; } });
 ipcMain.handle('smartAuto', () => { const z = readJSON(path.join(DATA, 'smart_auto.json'), {}); return { bsc: { at: z.bsc?.at || 0, rank: z.bsc?.rank || [], n: Object.keys(z.bsc?.done || {}).length }, rh: { at: z.rh?.at || 0, rank: z.rh?.rank || [], n: Object.keys(z.rh?.done || {}).length } }; });
 ipcMain.handle('restartEngine', () => startEngine()); /* 她 11/2 15:46：引擎停了，按一下重新启动（11/3 起 Mac 也可以） */
 ipcMain.handle('pause', (e, on) => { const f = path.join(DATA, 'pause_buy.txt'); if (on) fs.writeFileSync(f, String(Date.now())); else try { fs.unlinkSync(f); } catch {} cache.at = 0; return on; });

@@ -1890,6 +1890,7 @@ async function paidLoop(mode = 'all', shard = null) {
     let tokAddr = ''; const tr = await cc(c, '0xfc0c546a', 3600e3); if (tr && tr.length >= 66) tokAddr = '0x' + tr.slice(26, 66);
     const sym = tokAddr ? tokStr(await cc(tokAddr, '0x95d89b41', 3600e3)) || P.name || c.slice(0, 8) : P.name || c.slice(0, 8);
     await Promise.all(WALLETS.map(async (W) => { 
+      if (W.off) { if (!P.offLog?.[W.name]) { P.offLog = P.offLog || {}; P.offLog[W.name] = 1; log(`[${W.name}] 钱包登出中，${P.name || c} 先不用这个钱包打（重新连上后自动恢复）`); } return; } /* 她 11/3：登出的钱包以前一直拿去预演，失败几十次、拖慢检查 */
       if (P.done[W.name]) return;
       if (!forced && WALLETS.length > 1 && W !== WALLETS[0] && !P.probeOk && Number(radarSet()['risk.probe']) !== 0) { /* ③ 先小额试水：第一个钱包真的收到东西，第二个钱包才打 */ if (P.done[WALLETS[0].name] !== 'minted') { P.probeWait = P.probeWait || Date.now(); if (Date.now() - P.probeWait < 180e3) return; } else { const A = WALLETS[0].addr; let got = 0n; for (const t of [P.tok, c].filter(Boolean)) { const r = await call(t, '0x70a08231' + wa(A)).catch(() => ''); if (r && r.length >= 66) got += BigInt(r.slice(0, 66)); } if (!(got > 0n)) { if (!P.probeLog) { P.probeLog = 1; log(`试水：${P.name || c} 第一个钱包还没真的收到东西，第二个钱包先不打`); } return; } P.probeOk = 1; } }
       if (!forced) { const rb = await riskBlock(W, c, 0n, '0x', false, true).catch(() => ''); if (rb) { if (P.riskLog !== rb) { P.riskLog = rb; log(`[${W.name}] 風控暫停 ${P.name || c}：${rb}`); } return; } }
@@ -2157,7 +2158,7 @@ async function manualMints() {
 }
 // ── TG 指令：使用者直接在機器人打「賣 XXX」「賣 XXX 一半」「餘額」，幾秒內執行，不經過 Claude ──
 // ── 更新提醒（開源版才開；使用者 11/1 00:47：不自動更新，只提醒；用戶回 /update 才更新，更新前安檢＋sha256＋備份，新版起不來自動換回）──
-const UPD = { on: true, ver: '1.0.2', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
+const UPD = { on: true, ver: '1.0.3', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function updCheck(quiet = false) {
   if (!UPD.on) return null;

@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('radar', {
   importAI: (k, n, b) => ipcRenderer.invoke('importAI', k, n, b),
   pause: (on) => ipcRenderer.invoke('pause', on),
   restartEngine: () => ipcRenderer.invoke('restartEngine'),
+  logTail: (n) => ipcRenderer.invoke('logTail', n),
   order: (o) => ipcRenderer.invoke('order', o),
   open: (u) => ipcRenderer.invoke('open', u),
   notify: (t, b) => ipcRenderer.invoke('notify', t, b),
