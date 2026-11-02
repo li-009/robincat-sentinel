@@ -18,6 +18,9 @@ export async function tick(api) {
   items.unshift({ type: 'stat', label: '全部合计', value: '$' + f(tb + tr, 1), sub: `${b.w.length} 个钱包` }, { type: 'stat', label: 'BNB Chain', value: '$' + f(tb, 1), sub: `BNB $${f(bp, 0)}` }, { type: 'stat', label: 'Robinhood', value: '$' + f(tr, 1), sub: `ETH $${f(ep, 0)}` });
   items.push({ type: 'table', cols: ['钱包', 'BNB', 'USDT', 'USDC', 'ETH（Robinhood）', '合计'], rows });
   const s = api.state; s.h = Array.isArray(s.h) ? s.h : []; if (!s.clean1) { { const v = s.h.map((p) => p[1]).sort((a, b) => a - b); const med = v[Math.floor(v.length / 2)] || 0; s.h = s.h.filter((p) => !(med > 0 && p[1] < med * 0.85)); } s.clean1 = 1; } /* 清掉以前读不到余额造成的假下跌 */ if (!part) s.h.push([Date.now(), +(tb + tr).toFixed(2)]); else items.push({ type: 'text', text: '有些余额这一分钟读不到（节点没回应），下一分钟会再读。' }); if (s.h.length > 1440) s.h.splice(0, s.h.length - 1440);
-  if (s.h.length > 1) items.push({ type: 'line', label: '钱包总值走势（美元）', points: s.h });
+  /* 她 11/2 15:13：走势要能看 1 天到一个月 → 每分钟的留 1 天，另外每小时记一笔、留 31 天 */
+  s.hh = Array.isArray(s.hh) ? s.hh : []; if (!part && (!s.hh.length || Date.now() - s.hh[s.hh.length - 1][0] >= 3600e3)) s.hh.push([Date.now(), +(tb + tr).toFixed(2)]); if (s.hh.length > 24 * 31) s.hh.splice(0, s.hh.length - 24 * 31);
+  const t1 = s.h.length ? s.h[0][0] : Date.now(); const pts = [...s.hh.filter((q) => q[0] < t1), ...s.h];
+  if (pts.length > 1) items.push({ type: 'line', label: '钱包总值走势（美元）', points: pts, ranges: [1, 3, 7, 14, 30] });
   api.panel({ title: '钱包总览', items });
 }
