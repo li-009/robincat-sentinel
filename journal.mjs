@@ -8,7 +8,7 @@ export function startJournal({ DIR, S, save, WALLETS, log, tg }) {
   const put = (r) => { try { appendFileSync(F, JSON.stringify({ at: Date.now(), ...r }) + '\n'); } catch (e) { log('日记写入失败 ' + e.message); } };
   function snap() {
     const tk = (t) => t ? [t.at, t.sym, t.w, t.usd].join('|') : ''; const last = (a) => tk((a || [])[(a || []).length - 1]);
-    const o = { dyn: {}, btK: last(S.trades), rhK: last(S.rh?.trades), rmK: last(S.rh?.mintLog), bnK: last(S.bscNft?.log), plK: {} };
+    const o = { dyn: {}, rh: {}, btK: last(S.trades), rhK: last(S.rh?.trades), rmK: last(S.rh?.mintLog), bnK: last(S.bscNft?.log), plK: {} };
     for (const t of S.dyn || []) o.dyn[t.addr + '|' + t.only] = +(t.cost || 0);
     for (const [c, P] of Object.entries(S.rh?.pos || {})) for (const [a, w] of Object.entries(P.w || {})) o.rh[c + '|' + a] = +(w.cost || 0);
     for (const [id, p] of Object.entries(S.plug || {})) o.plK[id] = last(p.trades);
@@ -23,9 +23,9 @@ export function startJournal({ DIR, S, save, WALLETS, log, tg }) {
   function tick() { try {
     const P = S.jPrev, N = snap();
     for (const t of S.dyn || []) { const k = t.addr + '|' + t.only; const d = +(t.cost || 0) - (P.dyn[k] || 0); if (d > 0.001) put({ chain: 'BSC', src: '雷达', side: '买', sym: t.sym, token: t.addr, wallet: wn(t.only), usd: +d.toFixed(2) }); }
-    for (const t of P.btK === undefined ? (S.trades || []).slice(P.bt || 0) : after(S.trades, P.btK)) put({ chain: 'BSC', src: '雷达', side: '卖', sym: t.sym, wallet: t.w, usd: t.usd, got: t.bnb ? t.bnb + ' BNB' : '', note: t.why || '' });
-    for (const [c, Q] of Object.entries(S.rh?.pos || {})) for (const [a, w] of Object.entries(Q.w || {})) { const d = +(w.cost || 0) - (P.rh[c + '|' + a] || 0); if (d > 0.001) put({ chain: 'Robinhood', src: '雷达', side: '买', sym: Q.sym, token: c, wallet: wn(a), usd: +d.toFixed(2) }); }
-    for (const t of P.rhK === undefined ? (S.rh?.trades || []).slice(P.rht || 0) : after(S.rh?.trades, P.rhK)) put({ chain: 'Robinhood', src: '雷达', side: '卖', sym: t.sym, token: t.c, wallet: wn(t.w), usd: t.usd ?? null, note: `${t.pct}%｜${t.why}${t.ok ? '' : '（失败）'}` });
+    for (const t of P.btK === undefined ? (S.trades || []).slice(P.bt || 0) : after(S.trades, P.btK)) put({ chain: 'BSC', src: '雷达', side: '卖', sym: t.sym, wallet: t.w, usd: t.usd, got: t.bnb ? t.bnb + ' BNB' : '', note: t.why || '', cp: t.cp || 0, manual: t.manual || 0 });
+    for (const [c, Q] of Object.entries(S.rh?.pos || {})) for (const [a, w] of Object.entries(Q.w || {})) { const d = +(w.cost || 0) - ((P.rh || {})[c + '|' + a] || 0); /* 11/2 22:40：以前少了 rh，有 Robinhood 持仓时日记整个会停 */ if (d > 0.001) put({ chain: 'Robinhood', src: '雷达', side: '买', sym: Q.sym, token: c, wallet: wn(a), usd: +d.toFixed(2) }); }
+    for (const t of P.rhK === undefined ? (S.rh?.trades || []).slice(P.rht || 0) : after(S.rh?.trades, P.rhK)) put({ chain: 'Robinhood', src: '雷达', side: '卖', sym: t.sym, token: t.c, wallet: wn(t.w), usd: t.ok ? (t.usd ?? null) : null, note: `${t.pct}%｜${t.why}${t.ok ? '' : '（失败）'}`, cp: t.ok ? (t.cp || 0) : 0, manual: t.manual || 0 });
     if (P.rmK !== undefined) for (const t of after(S.rh?.mintLog, P.rmK).filter((x) => x.nft)) put({ chain: 'Robinhood', src: '雷达 铸造', side: '买', sym: t.sym, token: t.c, wallet: wn(t.w), usd: t.usd, note: t.nft ? 'NFT' : '' });
     if (P.bnK !== undefined) for (const t of after(S.bscNft?.log, P.bnK)) put({ chain: 'BSC', src: '雷达 NFT 铸造', side: '买', sym: t.sym, token: t.c, wallet: wn(t.w), usd: t.usd, note: 'NFT' });
     for (const [id, p] of Object.entries(S.plug || {})) for (const t of P.plK === undefined ? (p.trades || []).slice((P.pl || {})[id] || 0) : after(p.trades, P.plK[id])) put({ chain: 'BSC', src: '外挂 ' + id, side: t.side, sym: t.sym, wallet: wn(t.w), usd: t.usd, got: t.got || '', stable: t.stable || '' });

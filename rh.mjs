@@ -9,7 +9,7 @@ export const RHC = {
   maxRoundTrip: 0.25,                        // 模拟「买进马上卖」亏损 > 25%（税高／貔貅）不打
   lpDrop: 0.4, bundleSellPct: 0.01,          // 买了以后：池子少 40% 或捆绑钱包卖超过 1% 总量 → 立刻全卖
   backX: 2, steps: [[10, 30], [20, 50]], crash: 0.4, crashAfterBack: 0.6,
-  mintAuto: 1, mintUsd: 5, mintDayUsd: 20, mintMinReal: 50, mintWinMin: 60, mintMaxFresh: 15, // Robinhood 铸造项目：1 小时内 ≥ 50 个真人钱包在铸造、新开钱包占比 ≤ 15%、每次铸造 ≤ 5U 才自动铸 // 卖出照 BSC：2 倍卖回本、10 倍卖 30%、20 倍再卖 50%、从最高回落 40%（回本后 60%）全卖
+  auto: 0, mintAuto: 0, mintUsd: 5, mintDayUsd: 20, mintMinReal: 50, mintWinMin: 60, mintMaxFresh: 15, // Robinhood 铸造项目：1 小时内 ≥ 50 个真人钱包在铸造、新开钱包占比 ≤ 15%、每次铸造 ≤ 5U 才自动铸 // 卖出照 BSC：2 倍卖回本、10 倍卖 30%、20 倍再卖 50%、从最高回落 40%（回本后 60%）全卖
 };
 const NATIVE = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 const RPCS = ['https://rpc.mainnet.chain.robinhood.com', 'https://robinhood.drpc.org', 'https://4663.rpc.thirdweb.com']; /* 官方会限流 → 轮流用三个；nodeflare 每 10 秒只给 1 次，而且历史查询会回假资料，不用 */
@@ -45,13 +45,16 @@ export function startRH(ctx) {
     for (const k of ['new_pools', 'trending_pools']) { try { const j = await (await fetch(`https://api.geckoterminal.com/api/v2/networks/robinhood/${k}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(12000) })).json(); for (const p of j.data || []) { const a = p.attributes || {}; pools.push({ c: lc(String(p.relationships?.base_token?.data?.id || '').split('_').pop()), sym: String(a.name || '').split(' / ')[0].trim(), pool: lc(a.address), liq: +a.reserve_in_usd || 0, ageMin: a.pool_created_at ? (Date.now() - Date.parse(a.pool_created_at)) / 60e3 : 1e9, buys: a.transactions?.h1?.buys || 0, sells: a.transactions?.h1?.sells || 0 }); } } catch {} await sleep(1500); }
     if (pools.length < 5) { try { const seen = new Set(); for (const u of ['token-profiles/latest/v1', 'token-boosts/latest/v1']) { const j = await (await fetch('https://api.dexscreener.com/' + u, { signal: AbortSignal.timeout(12000) })).json(); for (const x of j || []) if (x.chainId === 'robinhood') seen.add(lc(x.tokenAddress)); }
         const ids = [...seen].filter(isAddr).slice(0, 30); if (ids.length) { const ps = await (await fetch(`https://api.dexscreener.com/tokens/v1/robinhood/${ids.join(',')}`, { signal: AbortSignal.timeout(12000) })).json(); for (const p of ps || []) pools.push({ c: lc(p.baseToken?.address), sym: String(p.baseToken?.symbol || ''), pool: lc(p.pairAddress), liq: +(p.liquidity?.usd) || 0, ageMin: p.pairCreatedAt ? (Date.now() - p.pairCreatedAt) / 60e3 : 1e9, buys: p.txns?.h1?.buys || 0, sells: p.txns?.h1?.sells || 0 }); } } catch {} } /* GeckoTerminal 被限流时改用 DexScreener，不会整个瞎掉 */
+    try { const { readFileSync } = await import('node:fs'); const J = JSON.parse(readFileSync(new URL('./data/rh_cand.json', import.meta.url), 'utf8')); if (Date.now() - (J.at || 0) < 10 * 60e3) for (const x of J.list || []) pools.push({ c: lc(x.c), sym: String(x.sym || ''), pool: '', liq: +x.liq || 0, ageMin: (Date.now() - (x.at || 0)) / 60e3, buys: x.b || 0, sells: x.s || 0 }); } catch {} /* 11/2：雷达自己读链看到的新币（Pons、Long…）也交给引擎检查 */
     const bySym = new Map(); for (const p of pools) { const s = p.sym.toUpperCase(); if (!bySym.has(s)) bySym.set(s, new Set()); bySym.get(s).add(p.c); }
+    const firstOf = {}; for (const p of pools) { const k = p.sym.toUpperCase(); if (!firstOf[k] || p.ageMin > (pools.find((x) => x.c === firstOf[k])?.ageMin ?? -1)) firstOf[k] = p.c; }
     const seen = new Set(), out = [];
     for (const p of pools) { if (!isAddr(p.c) || seen.has(p.c)) continue; seen.add(p.c);
-      if (bySym.get(p.sym.toUpperCase()).size > 1) { note(p, '同名有好几个币（仿盘），跳过'); continue; }
+      if (bySym.get(p.sym.toUpperCase()).size > 1 && RHC.firstOnly !== 0 && firstOf[p.sym.toUpperCase()] !== p.c) { note(p, '同名有好几个币，这个不是最早发的（仿盘），跳过'); continue; } /* 她 11/2：按键「同名仿盘不打，只认第一个」 */
       if (!(p.liq > 0)) { note(p, '流动性是 0，数据不可信'); continue; }
       if (p.ageMin > RHC.maxAgeMin) continue;
       if (p.liq < RHC.minLiqUsd) { note(p, `流动性 $${Math.round(p.liq)}，要 $${RHC.minLiqUsd} 以上`, 1); continue; }
+      if (RHC.antiWash !== 0 && p.buys >= 20 && p.sells <= 1) { note(p, `1 小时买 ${p.buys}／卖 ${p.sells}，买单一面倒，像刷出来的热度`, 1); continue; } /* 她 11/2 按键：假热度不打 */
       if (p.buys <= p.sells) { note(p, `1 小时买 ${p.buys}／卖 ${p.sells}，卖比买多`, 1); continue; }
       out.push(p); }
     return out;
@@ -115,6 +118,13 @@ export function startRH(ctx) {
     if (devPct > RHC.maxDev) why.push(`部署者自己持有 ${(devPct * 100).toFixed(1)}%（上限 ${RHC.maxDev * 100}%）`);
     if (!manual && realBuyers < RHC.minRealBuyers) why.push(`1 小时真实买家 ${realBuyers} 个（要 ${RHC.minRealBuyers} 个，新开钱包、空钱包不算）`);
     if (bundlePct > 0.3 && deployer) R.black[lc(deployer)] = { why: '捆绑超过 30%', at: Date.now() };
+    /* 她 11/2 按键：合约危险权限（能增发／能暂停交易／黑名单，而且开发者没放弃权限）不打；只买有官方 X／TG 的币 */
+    if (RHC.noDanger !== 0) { try { const code = String(await rpc('eth_getCode', [c, 'latest']) || '').toLowerCase(); const has = (sel) => code.includes('63' + sel); const own = await call(c, '0x8da5cb5b'); const owner = own && own.length >= 66 ? '0x' + own.slice(26, 66) : ''; const renounced = !owner || /^0x0{40}$/.test(owner) || owner === DEAD;
+        const bad = []; if (has('40c10f19')) bad.push('能增发'); if (has('8456cb59')) bad.push('能暂停交易'); if (has('f9f92be4') || has('44337ea1') || has('1a895266')) bad.push('有黑名单'); if (bad.length && !renounced) why.push(`合约有危险权限（${bad.join('、')}），开发者还没放弃`); } catch {} }
+    if (!manual && (RHC.mcMin > 0 || RHC.mcMax > 0)) { try { const ps = await (await fetch('https://api.dexscreener.com/tokens/v1/robinhood/' + c, { signal: AbortSignal.timeout(10000) })).json(); const mc = Math.max(0, ...(Array.isArray(ps) ? ps : []).map((p) => +(p.marketCap || p.fdv) || 0)); if (mc > 0) { if (RHC.mcMin > 0 && mc < RHC.mcMin) why.push(`市值 $${Math.round(mc)}，低于你设的 $${RHC.mcMin}`); if (RHC.mcMax > 0 && mc > RHC.mcMax) why.push(`市值 $${Math.round(mc)}，高于你设的 $${RHC.mcMax}`); } } catch {} } /* 她 11/2 按键：市值区间 */
+    if (RHC.needSmart === 1 && !manual && !(Date.now() - (S.smartW?.seen?.['robinhood' + c + '买'] || 0) < 6 * 3600e3)) why.push('你标记的聪明钱包还没买'); /* 她 11/2 按键：聪明钱包也买了才跟 */
+    if (RHC.needCall === 1 && !manual && !(S.callHits?.[c]?.length)) why.push('还没有被你监测的 TG 频道／X 帐号喊过'); /* 她 11/2 按键：被喊过才买 */
+    if (RHC.needSocial === 1 && !manual) { try { const ps = await (await fetch('https://api.dexscreener.com/tokens/v1/robinhood/' + c, { signal: AbortSignal.timeout(10000) })).json(); const ok = (Array.isArray(ps) ? ps : []).some((p) => (p.info?.socials || []).some((x) => /twitter|x\.com|telegram|t\.me/i.test((x.type || '') + ' ' + (x.url || '')))); if (!ok) why.push('没有官方 X／TG'); } catch {} }
     if (why.length) return { ok: false, why: why.join('；'), facts };
     if (opt.noQuote) return { ok: true, why: '（回测）链上检查全部通过', facts };
     // 模拟买进马上卖：亏太多 = 税高或貔貅
@@ -129,21 +139,24 @@ export function startRH(ctx) {
   async function ethBal(a) { for (let i = 0; i < 3; i++) { const h = await rpc('eth_getBalance', [a, 'latest']).catch(() => null); if (h && /^0x[0-9a-f]+$/i.test(h)) return Number(BigInt(h)) / 1e18; } return null; } /* 她 11/2 05:01：节点没回应不能当成 0（误报 ETH 不够） */
   async function tokBal(c, a) { return big(await call(c, '0x70a08231' + wa(a))); }
 
-  async function buy(c, sym, facts, manual, usdIn) { const USD = Number(usdIn) > 0 ? Number(usdIn) : RHC.usd;
+  async function buy(c, sym, facts, manual, usdIn, opt = {}) { const USD = Number(usdIn) > 0 ? Number(usdIn) : RHC.usd; const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168', payG = !!opt.usdg; /* 她 11/2 19:27：Robinhood 可以直接用 USDG 付，不换成 ETH */
     const px = await ethUsd(); if (!(px > 0)) return '读不到 ETH 价格';
     const res = [];
-    for (const W of WALLETS) {
+    const WL = manual ? [WALLETS.find((x) => x.addr === lc(opt.w || '')) || WALLETS[0]].filter(Boolean) : WALLETS; /* 11/2 21:50 逆向：手动／一键买以前会让「每个钱包」都买一次 → 只用你选的钱包（没选就第一个） */
+    const sandPx = manual ? ((await dsInfo([c]).catch(() => new Map())).get(c)?.price || 0) : 0; /* 防夹提醒：买前市价 */
+    for (const W of WL) {
       if (!manual && spent(W.addr) + USD > RHC.dayUsd) { res.push(`[${W.name}] 今天额度用完`); continue; }
-      const q = USD / px; const eb = await ethBal(W.addr); if (eb != null && eb < q + 0.0003) { res.push(`[${W.name}] Robinhood 上的 ETH 不够（有 ${eb.toFixed(5)}，要 ${(q + 0.0003).toFixed(5)}）`); continue; }
+      const q = USD / px; const eb = await ethBal(W.addr); if (payG) { const ug = Number(await tokBal(USDG, W.addr)) / 1e6; if (ug < USD) { res.push(`[${W.name}] USDG 不够（有 ${ug.toFixed(2)}，要 ${USD}）`); continue; } if (eb != null && eb < 0.0002) { res.push(`[${W.name}] ETH 只剩 ${eb.toFixed(5)}，付不起手续费（用 USDG 买也要一点 ETH）`); continue; } } else if (eb != null && eb < q + 0.0003) { res.push(`[${W.name}] Robinhood 上的 ETH 不够（有 ${eb.toFixed(5)}，要 ${(q + 0.0003).toFixed(5)}）`); continue; }
       const b0 = await tokBal(c, W.addr);
-      const sw = await W.baw(['market-order', 'swap', '--binanceChainId', '4663', '--fromTokenQty', q.toFixed(6), '--fromToken', NATIVE, '--toToken', c, '--slippage', '15']);
+      const goRH = (sl) => W.baw(['market-order', 'swap', '--binanceChainId', '4663', '--fromTokenQty', payG ? USD.toFixed(2) : q.toFixed(6), '--fromToken', payG ? USDG : NATIVE, '--toToken', c, '--slippage', sl]); let sw = await goRH('auto'); if (!sw.j?.success) sw = await goRH('15'); /* 11/2 防夹：先用钱包自动滑点，买不进去才 15% */
       log(`[Robinhood][${W.name}] 买 ${sym}：${sw.t.slice(0, 300)}`);
       if (!sw.j?.success) { res.push(`[${W.name}] 买入失败：${String(sw.j?.error?.message || sw.t).slice(0, 80)}`); continue; }
-      addSpent(W.addr, USD);
+      if (!manual) addSpent(W.addr, USD); /* 11/2 22:28 冲突：手动买以前会吃掉自动打的每日额度 */
       let b1 = b0; for (let i = 0; i < 20 && b1 <= b0; i++) { await sleep(3000); b1 = await tokBal(c, W.addr); }
-      const P = R.pos[c] || (R.pos[c] = { sym, at: Date.now(), w: {}, liq0: facts?.liq0 || 0, pool: facts?.pool, watch: facts?.bundle || [], supply: facts?.supply, lastB: 0, bundleSold: '0' });
+      const P = R.pos[c] || (R.pos[c] = { manual: !!manual, dev: facts?.deployer ? lc(facts.deployer) : '', sym, at: Date.now(), w: {}, liq0: facts?.liq0 || 0, pool: facts?.pool, watch: facts?.bundle || [], supply: facts?.supply, lastB: 0, bundleSold: '0' });
       const w = P.w[W.addr] || (P.w[W.addr] = { cost: 0, peak: 0, stage: 0 }); w.cost += USD; save();
-      res.push(`[${W.name}] ✅ 已买 ${USD}U`);
+      let sw2 = ''; try { if (sandPx > 0 && b1 > b0) { const got = Number(b1 - b0) / 10 ** (await decimals(c)); const over = (USD / got / sandPx - 1) * 100; if (over >= 8) { sw2 = `\n⚠️ 这笔成交价比市价贵约 ${over.toFixed(0)}%，可能被夹子夹了或池子太小滑点大。下次可以买少一点、分开买`; log(`[Robinhood][${W.name}] 防夹提醒 ${c} 贵 ${over.toFixed(1)}%`); } } } catch {}
+      res.push(`[${W.name}] ✅ 已买 ${+USD.toFixed(2)}U` + sw2);
     }
     return res.join('\n');
   }
@@ -151,9 +164,10 @@ export function startRH(ctx) {
   async function sellPct(c, P, W, pct, why) {
     const b = await tokBal(c, W.addr); if (b <= 0n) return false; const d = await decimals(c);
     const amt = (b * BigInt(Math.round(pct * 100))) / 10000n; const qty = (Number(amt / 10n ** BigInt(Math.max(0, d - 6))) / 1e6).toFixed(6); if (!(Number(qty) > 0)) return false;
+    const e0 = await ethBal(W.addr).catch(() => null);
     const r = await W.baw(['market-order', 'swap', '--binanceChainId', '4663', '--fromTokenQty', qty, '--fromToken', c, '--toToken', NATIVE, '--slippage', '20']);
     log(`[Robinhood][${W.name}] 卖 ${P.sym} ${pct}%（${why}）：${r.t.slice(0, 300)}`);
-    const ok = !!r.j?.success; R.trades = R.trades || []; R.trades.push({ sym: P.sym, c, w: W.addr, pct, why, ok, at: Date.now() }); if (R.trades.length > 2000) R.trades.splice(0, R.trades.length - 2000);
+    const ok = !!r.j?.success; let usd = null, cp = null; if (ok) { const w = P.w?.[W.addr]; if (w) { const rem = w.rem ?? 1; cp = +((w.cost || 0) * rem * pct / 100).toFixed(2); w.rem = rem * (1 - pct / 100); } try { await sleep(6000); const e1 = await ethBal(W.addr), px = await ethUsd(); if (e0 != null && e1 != null && px > 0) usd = +((e1 - e0) * px).toFixed(2); } catch {} } /* 11/2 22:40 逆向：以前 Robinhood 卖出没记拿回多少钱，保险丝／连亏暂停都算不到 */ R.trades = R.trades || []; R.trades.push({ sym: P.sym, c, w: W.addr, pct, why, ok, at: Date.now(), usd, cp, manual: P.manual ? 1 : 0 }); if (R.trades.length > 2000) R.trades.splice(0, R.trades.length - 2000);
     const em = ok ? '' : String(r.j?.error?.message || r.t || '').slice(0, 200); W._lastErr = em; await tg(`💰 [Robinhood][${W.name}] ${P.sym} ${ok ? '已卖' : '想卖但失败'} ${pct}%（${why}）${ok ? '' : '\n原因：' + (globalThis.sellWhy ? globalThis.sellWhy(em) : em.slice(0, 100))}\n${c}`).catch(() => {}); return ok;
   }
 
@@ -164,15 +178,18 @@ export function startRH(ctx) {
       const cs = Object.keys(R.pos); if (!cs.length) return; const info = await dsInfo(cs); const head = parseInt(await rpc('eth_blockNumber', []), 16);
       for (const c of cs) { const P = R.pos[c]; const I = info.get(c); let dump = '';
         // 捆绑钱包开始卖 → 先跑
-        if (P.watch?.length && P.pool) { const fromB = P.lastB || head - 50; if (head > fromB) { try { const lg = await rpc('eth_getLogs', [{ fromBlock: '0x' + (fromB + 1).toString(16), toBlock: '0x' + head.toString(16), address: c, topics: [TRANSFER] }]); const ws = new Set(P.watch); let s = BigInt(P.bundleSold || '0'); for (const l of lg) { const f = lc('0x' + l.topics[1].slice(26)), t = lc('0x' + l.topics[2].slice(26)); if (ws.has(f) && t === P.pool) s += big(l.data); } P.bundleSold = s.toString(); P.lastB = head; if (P.supply && Number((s * 10000n) / BigInt(P.supply)) / 10000 > RHC.bundleSellPct) dump = '捆绑钱包开始砸盘'; } catch {} } }
+        if ((P.watch?.length && P.pool) || (P.dev && RHC.devSellRun !== 0)) { const fromB = P.lastB || head - 50; if (head > fromB) { try { const lg = await rpc('eth_getLogs', [{ fromBlock: '0x' + (fromB + 1).toString(16), toBlock: '0x' + head.toString(16), address: c, topics: [TRANSFER] }]); const ws = new Set(P.watch); let s = BigInt(P.bundleSold || '0'); for (const l of lg) { const f = lc('0x' + l.topics[1].slice(26)), t = lc('0x' + l.topics[2].slice(26)); if (ws.has(f) && t === P.pool) s += big(l.data); if (P.dev && f === P.dev && t !== P.dev) P.devOut = (BigInt(P.devOut || '0') + big(l.data)).toString(); } if (RHC.devSellRun !== 0 && P.dev && P.supply && Number((BigInt(P.devOut || '0') * 10000n) / BigInt(P.supply)) / 10000 > 0.005) dump = '开发者开始卖币（转出超过总量 0.5%）'; /* 她 11/2 按键：开发者一卖就跑 */ P.bundleSold = s.toString(); P.lastB = head; if (P.supply && Number((s * 10000n) / BigInt(P.supply)) / 10000 > RHC.bundleSellPct) dump = '捆绑钱包开始砸盘'; } catch {} } }
         if (I && P.liq0 > 0 && I.liq < P.liq0 * (1 - RHC.lpDrop)) dump = `池子流动性掉了 ${Math.round((1 - I.liq / P.liq0) * 100)}%（可能在抽池）`;
         if (I && !P.liq0) P.liq0 = I.liq;
         for (const W of WALLETS) { const w = P.w[W.addr]; if (!w || w.closed) continue;
-          if (dump) { if (await sellPct(c, P, W, 100, dump)) w.closed = 1; continue; }
-          if (!I?.price) continue; const b = await tokBal(c, W.addr); if (b <= 0n) { w.closed = 1; continue; } const d = await decimals(c); const val = (Number(b / 10n ** BigInt(Math.max(0, d - 6))) / 1e6) * I.price; w.val = val; w.peak = Math.max(w.peak || 0, val); const x = val / (w.cost || 1);
+          if (dump && P.manual) { if (!P.dumpWarned) { P.dumpWarned = 1; save(); await tg(`⚠️ [Robinhood] ${P.sym}：${dump}\n这是你手动／一键买的，雷达不会自动卖，要卖请自己按「卖」 | ${c}`); } } /* 她 11/2 22:15 选 B：手动／一键买的不自动卖，只提醒 */
+          else if (dump) { if (await sellPct(c, P, W, 100, dump)) w.closed = 1; continue; }
+          if (!I?.price) { if (!P.manual) { P.noPxAt = P.noPxAt || Date.now(); if (!P.noPxWarn && Date.now() - P.noPxAt > 10 * 60e3) { P.noPxWarn = 1; save(); await tg(`⚠️ [Robinhood] ${P.sym} 已经 10 分钟读不到价格（行情来源断线）。这段时间雷达没办法帮你止盈止损，恢复后会通知你。很担心可以先自己卖。\n${c}`).catch(() => {}); } } continue; } if (P.noPxAt) { if (P.noPxWarn) await tg(`✅ [Robinhood] ${P.sym} 又读得到价格了，止盈止损恢复正常`).catch(() => {}); P.noPxAt = 0; P.noPxWarn = 0; save(); } /* 她 11/2 22:35：读不到行情要讲 */ const b = await tokBal(c, W.addr); if (b <= 0n) { w.closed = 1; continue; } const d = await decimals(c); const val = (Number(b / 10n ** BigInt(Math.max(0, d - 6))) / 1e6) * I.price; w.val = val; w.peak = Math.max(w.peak || 0, val); const x = val / (w.cost || 1);
+          if (P.manual) continue; /* 她 11/2 22:15 选 B：手动／一键买的只更新市值，不照卖出规则卖 */
           if (w.stage === 0 && x >= RHC.backX) { if (await sellPct(c, P, W, Math.min(100, Math.round(100 / x)), `${x.toFixed(1)} 倍，卖回本钱`)) w.stage = 1; continue; }
           const st = RHC.steps[w.stage - 1]; if (st && x >= st[0]) { if (await sellPct(c, P, W, st[1], `${st[0]} 倍分批卖`)) w.stage++; continue; }
-          if (w.peak > 0 && val < w.peak * (1 - (w.stage ? RHC.crashAfterBack : RHC.crash))) { if (await sellPct(c, P, W, 100, `从最高点回落 ${Math.round((1 - val / w.peak) * 100)}%`)) w.closed = 1; }
+          if (w.peak > 0 && val < w.peak * (1 - (w.stage ? RHC.crashAfterBack : RHC.crash))) { if (await sellPct(c, P, W, 100, `从最高点回落 ${Math.round((1 - val / w.peak) * 100)}%`)) w.closed = 1; continue; }
+          if (RHC.timeStopMin > 0 && w.stage === 0 && Date.now() - (P.at || Date.now()) > RHC.timeStopMin * 60e3 && x < 1.05) { if (await sellPct(c, P, W, 100, `买进 ${RHC.timeStopMin} 分钟还没涨，时间止损`)) w.closed = 1; } /* 她 11/2 按键：时间止损 */
         }
         if (Object.values(P.w).every((w) => w.closed)) { R.done = R.done || {}; R.done[c] = { ...P, endAt: Date.now() }; delete R.pos[c]; }
       } save();
@@ -189,7 +206,7 @@ export function startRH(ctx) {
         R.seen[p.c] = { sym: p.sym, at: Date.now(), why: r.why, ok: r.ok, full: 1, liq: p.liq, real: r.facts?.realBuyers, bundle: r.facts?.bundlePct, top10: r.facts?.top10 }; save();
         log(`[Robinhood] ${p.sym} ${p.c}：${r.why}`);
         if (r.ok) { const cs = globalThis.CUSTOM_SKIP?.({ chain: 'robinhood', type: 'token', c: p.c, sym: p.sym, liqUsd: p.liq, realBuyers: r.facts.realBuyers, bundlePct: r.facts.bundlePct * 100, top10Pct: r.facts.top10 * 100 }); if (cs) { R.seen[p.c].ok = false; R.seen[p.c].why = '自订规则不打：' + cs; log(`[Robinhood] ${p.sym} 自订规则不打：${cs}`); continue; } }
-        if (r.ok) { if (radarOff() || RHC.auto === 0) { log(`[Robinhood] ${p.sym} 符合条件，但雷达设成暂停／不自动打`); continue; }
+        if (r.ok) { if (radarOff() || RHC.auto !== 1) { log(`[Robinhood] ${p.sym} 符合条件，但雷达设成暂停／不自动打`); continue; }
           if (Object.keys(R.pos).length >= RHC.maxPos) { log(`[Robinhood] ${p.sym} 符合条件，但已经持有 ${RHC.maxPos} 个，先不打`); continue; }
           r.facts.liq0 = p.liq; const msg = await buy(p.c, p.sym, r.facts);
           await tg(`💰 [Robinhood] 自动打 ${p.sym}\n真实买家 ${r.facts.realBuyers} 个｜捆绑 ${(r.facts.bundlePct * 100).toFixed(1)}%｜前10大 ${(r.facts.top10 * 100).toFixed(0)}%｜模拟来回亏 ${(r.facts.roundTrip * 100).toFixed(0)}%\n${msg}\n${p.c}`).catch(() => {}); }
@@ -236,7 +253,7 @@ export function startRH(ctx) {
     if (M.costUsd != null && M.costUsd > RHC.mintUsd) why.push(`一次铸造要约 ${M.costUsd.toFixed(1)}U（超过设定 ${RHC.mintUsd}U）`);
     const cs = globalThis.CUSTOM_SKIP?.({ chain: 'robinhood', type: 'mint', c, name: M.name, sym: M.sym, realBuyers: real }); if (cs) why.push('自订规则：' + cs);
     M.ok = !why.length; M.why = why.join('；') || '符合条件';
-    if (M.ok && RHC.mintAuto && RHC.auto !== 0 && !radarOff() && !M.done) await doMint(c, M, false);
+    if (M.ok && RHC.mintAuto === 1 && !radarOff() /* 11/2 22:25 冲突：以前关掉「Robinhood 热门代币」连铸造也一起停，两个是不同策略 */ && !M.done) await doMint(c, M, false);
   }
   async function doMint(c, M, manual, capU = 0) {
     if (!M.tpl) return '没有可以照着做的铸造方式';
@@ -256,7 +273,7 @@ export function startRH(ctx) {
       const x = await W.baw(['contract-call', 'execute', '--requestId', rid]); log(`[Robinhood 铸造][${W.name}] ${M.name || c}：${String(x.t).slice(0, 200)}`);
       if (!x.j?.success) { out.push(`[${W.name}] 送出失败：${String(x.j?.error?.message || x.t).slice(0, 80)}`); continue; }
       M.done[W.addr] = Date.now(); const cu = px > 0 ? Number(val) / 1e18 * px : 0; R.mintDay = { [dd]: { ...(R.mintDay[dd] || {}), [W.addr]: sp + cu } };
-      if (!M.nft) { const P = R.pos[c] || (R.pos[c] = { sym: M.sym || M.name, at: Date.now(), w: {}, liq0: 0, watch: [], lastB: 0, bundleSold: '0' }); const w = P.w[W.addr] || (P.w[W.addr] = { cost: 0, peak: 0, stage: 0 }); w.cost += cu; } // 代币型：开盘后照卖出规则管
+      if (!M.nft) { const P = R.pos[c] || (R.pos[c] = { mint: 1, sym: M.sym || M.name, at: Date.now(), w: {}, liq0: 0, watch: [], lastB: 0, bundleSold: '0' }); const w = P.w[W.addr] || (P.w[W.addr] = { cost: 0, peak: 0, stage: 0 }); w.cost += cu; } // 代币型：开盘后照卖出规则管
       (R.mintLog = R.mintLog || []).push({ c, sym: M.sym || M.name, w: W.addr, usd: +cu.toFixed(2), nft: M.nft, at: Date.now() }); out.push(`[${W.name}] ✅ 已铸造${cu ? `（约 ${cu.toFixed(2)}U）` : ''}`);
     }
     save(); const msg = out.join('\n'); await tg(`💰 [Robinhood] ${manual ? '手动' : '自动'}铸造 ${M.name || ''}（${M.sym || ''}）\n真人钱包 ${M.real} 个｜新开钱包 ${M.freshPct?.toFixed(0)}%\n${msg}\n${c}${M.nft ? '\n（这是 NFT，雷达不会自动卖，要卖请自己到市场挂单）' : ''}`).catch(() => {}); return msg;
@@ -268,10 +285,10 @@ export function startRH(ctx) {
   if (ctx.noLoop) return { analyze, RHC };
   const PCT = new Set(['maxBundle', 'maxTop10', 'maxDev', 'maxRoundTrip', 'lpDrop', 'bundleSellPct', 'crash', 'crashAfterBack']);
   const RDEF = { ...RHC };
-  function apply(set, schema) { Object.assign(RHC, RDEF); for (const it of schema || []) { if (!it.k.startsWith('rh.')) continue; const n = it.k.slice(3); let x = set[it.k]; if (x == null || x === '') continue; x = Number(x); if (!Number.isFinite(x)) continue; x = Math.min(it.max, Math.max(it.min, x)); RHC[n] = PCT.has(n) ? x / 100 : x; } }
+  function apply(set, schema) { Object.assign(RHC, RDEF); for (const it of schema || []) { if (!it.k.startsWith('rh.')) continue; const n = it.k.slice(3); let x = set[it.k]; if (x == null || x === '') continue; x = Number(x); if (!Number.isFinite(x)) continue; x = Math.min(it.max, Math.max(it.min, x)); RHC[n] = PCT.has(n) ? x / 100 : x; } RHC.firstOnly = +(set?.['risk.firstOnly'] ?? 1); }
   const t1 = setInterval(() => { scan(); }, 90e3); const t2 = setInterval(() => { monitor(); }, 15e3); t1.unref?.(); t2.unref?.(); setTimeout(scan, 15e3);
   log('[Robinhood] 自动打启动');
-  async function manualBuy(c, usd) { c = lc(c); const r = await analyze(c, null, true).catch((e) => ({ ok: false, why: e.message })); if (!r.ok) return '❌ 挡下了：' + r.why; const I = (await dsInfo([c])).get(c); r.facts.liq0 = I?.liq || 0; return await buy(c, I?.sym || c.slice(0, 8), r.facts, true, usd); }
+  async function manualBuy(c, usd, opt = {}) { c = lc(c); const r = await analyze(c, null, true).catch((e) => ({ ok: false, why: e.message })); if (!r.ok) return '❌ 挡下了：' + r.why; const I = (await dsInfo([c])).get(c); r.facts.liq0 = I?.liq || 0; return await buy(c, I?.sym || c.slice(0, 8), r.facts, true, usd, opt); }
   async function manualSell(c, pct = 100, only = '') { c = lc(c); pct = Math.min(100, Math.max(1, Number(pct) || 100)); const P = R.pos[c]; if (!P) return '没有这个 Robinhood 持仓'; const out = []; for (const W of WALLETS) { if (only && lc(only) !== W.addr) continue; const w = P.w[W.addr]; if (!w || w.closed) continue; const ok = await sellPct(c, P, W, pct, `你在雷达按了卖 ${pct}%`); if (ok && pct >= 100) w.closed = 1; out.push(`[${W.name}] ${ok ? '✅ 已卖' : '❌ 没卖成：' + (globalThis.sellWhy ? globalThis.sellWhy(W._lastErr) : (W._lastErr || '没有拿到原因'))}`); } if (Object.values(P.w).every((w) => w.closed)) { R.done = R.done || {}; R.done[c] = { ...P, endAt: Date.now() }; delete R.pos[c]; } save(); return out.join('\n') || '没有可卖的'; }
   return { manualBuy, manualSell, manualMint, previewMint, analyze, RHC, apply, ethBal, ethUsd };
 }

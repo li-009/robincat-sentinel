@@ -22,9 +22,19 @@
    "en": "BNB Chain · NFT mints"
   },
   {
+   "id": "agc",
+   "zh": "BNB Chain · AGC 免费挖",
+   "en": "BNB Chain · AGC free mining"
+  },
+  {
    "id": "sell",
    "zh": "BNB Chain · 卖出策略",
    "en": "BNB Chain · Sell strategy"
+  },
+  {
+   "id": "gen",
+   "zh": "BNB Chain · 一般新币自动买",
+   "en": "BNB Chain · New-token auto-buy"
   },
   {
    "id": "rh",
@@ -47,13 +57,13 @@
    "k": "bsc.mintAuto",
    "g": "bsc",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "自动铸造",
    "en": "Auto-mint",
-   "dzh": "关掉 = BNB Chain AI 铸造项目只通知不打",
-   "den": "Off = BNB Chain AI mint projects are alerts only"
+   "dzh": "关掉 = BNB Chain AI 铸造项目只通知不打（预设关，要自己打开才会买）",
+   "den": "Off = BNB Chain AI mint projects are alerts only (off by default — turn it on yourself)"
   },
   {
    "k": "bsc.mintUsd",
@@ -83,74 +93,79 @@
    "k": "bsc.goPct",
    "g": "bsc",
    "def": 60,
-   "min": 10,
+   "min": 0,
    "max": 100,
    "unit": "%",
    "zh": "铸造进度要到",
    "en": "Mint progress needed",
    "dzh": "进度到这里才打（太早容易被项目方钓鱼）",
-   "den": "Only mint after progress reaches this"
+   "den": "Only mint after progress reaches this",
+   "tog": "min"
   },
   {
    "k": "bsc.agMin",
    "g": "bsc",
    "def": 100,
-   "min": 20,
+   "min": 0,
    "max": 2000,
    "unit": "个",
    "uen": "wallets",
    "zh": "AI 钱包至少",
    "en": "Min AI wallets",
    "dzh": "要有这么多 Agent ID 钱包在打才跟（实名，很难造假）",
-   "den": "Agent ID (KYC) wallets minting before we join"
+   "den": "Agent ID (KYC) wallets minting before we join",
+   "tog": "min"
   },
   {
    "k": "bsc.drainSkip",
    "g": "bsc",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "钱被转走的付费项目不打",
    "en": "Skip paid mints whose funds were moved out",
    "dzh": "建议开着。关掉的话，付的钱可能被项目方转走、拿不回来",
-   "den": "Recommended ON. If off, the money you pay may be taken by the project and not refundable"
+   "den": "Recommended ON. If off, the money you pay may be taken by the project and not refundable",
+   "sug": 1
   },
   {
    "k": "bsc.stallSkip",
    "g": "bsc",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "免费铸造卡住就停",
    "en": "Stop on stalled free mints",
    "dzh": "进度 3 小时没动的免费项目，不再补铸、不排队",
-   "den": "Free mints whose progress hasn't moved for 3 hours are no longer minted or queued"
+   "den": "Free mints whose progress hasn't moved for 3 hours are no longer minted or queued",
+   "sug": 1
   },
   {
    "k": "bsc.cloneSkip",
    "g": "bsc",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "同名重发不打",
    "en": "Skip same-name re-launches",
    "dzh": "同一个名字 24 小时内第 2 个合约起不铸（常见钓自动铸造的手法）",
-   "den": "From the 2nd contract with the same name within 24h, don't mint (a common trick to bait auto-minters)"
+   "den": "From the 2nd contract with the same name within 24h, don't mint (a common trick to bait auto-minters)",
+   "sug": 1
   },
   {
    "k": "bsc.tokAuto",
    "g": "tok",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "自动买",
    "en": "Auto-buy",
-   "dzh": "关掉 = BNB Chain AI 热门代币只通知不买",
-   "den": "Off = BNB Chain AI hot tokens are alerts only"
+   "dzh": "关掉 = BNB Chain AI 热门代币只通知不买（预设关，要自己打开才会买）",
+   "den": "Off = BNB Chain AI hot tokens are alerts only (off by default — turn it on yourself)"
   },
   {
    "k": "bsc.tokUsd",
@@ -180,14 +195,15 @@
    "k": "bsc.tokNeed",
    "g": "tok",
    "def": 100,
-   "min": 10,
+   "min": 0,
    "max": 2000,
    "unit": "个",
    "uen": "wallets",
    "zh": "AI 钱包至少",
    "en": "Min AI wallets",
    "dzh": "这么多 Agent ID 钱包在买才跟",
-   "den": "Agent ID wallets buying before we join"
+   "den": "Agent ID wallets buying before we join",
+   "tog": "min"
   },
   {
    "k": "bsc.tokWinMin",
@@ -206,13 +222,14 @@
    "k": "bsc.tokMinLiqBnb",
    "g": "tok",
    "def": 10,
-   "min": 1,
+   "min": 0,
    "max": 1000,
    "unit": "BNB",
    "zh": "池子至少",
    "en": "Min liquidity",
    "dzh": "池子太小容易被砸、卖不出去",
-   "den": "Small pools are easy to dump"
+   "den": "Small pools are easy to dump",
+   "tog": "min"
   },
   {
    "k": "bsc.tokMaxTax",
@@ -224,7 +241,8 @@
    "zh": "买卖税最多",
    "en": "Max tax",
    "dzh": "税超过就不买（貔貅常用高税）",
-   "den": "Skip tokens with higher buy/sell tax"
+   "den": "Skip tokens with higher buy/sell tax",
+   "tog": "max"
   },
   {
    "k": "bsc.tokMaxBundle",
@@ -236,7 +254,8 @@
    "zh": "捆绑钱包最多",
    "en": "Max bundled wallets",
    "dzh": "开盘一起买、新开钱包、买一样数量的钱包，合计持有超过这个比例就不打",
-   "den": "Skip if wallets that bought together at launch / fresh / identical-size buys hold more than this"
+   "den": "Skip if wallets that bought together at launch / fresh / identical-size buys hold more than this",
+   "tog": "max"
   },
   {
    "k": "bsc.tokMaxTop10",
@@ -248,7 +267,8 @@
    "zh": "前 10 大最多",
    "en": "Max top-10 holders",
    "dzh": "前 10 大地址（不算池子）合计持有超过这个比例就不打",
-   "den": "Skip if the top 10 holders (excluding the pool) hold more than this"
+   "den": "Skip if the top 10 holders (excluding the pool) hold more than this",
+   "tog": "max"
   },
   {
    "k": "bsc.tokMinReal",
@@ -261,7 +281,8 @@
    "zh": "真实买家至少",
    "en": "Min real buyers",
    "dzh": "最近 1 小时，交易 8 次以上、钱包有 BNB 的买家要有这么多",
-   "den": "Buyers in the last hour with 8+ transactions and some BNB"
+   "den": "Buyers in the last hour with 8+ transactions and some BNB",
+   "tog": "min"
   },
   {
    "k": "sell.backX",
@@ -274,7 +295,8 @@
    "zh": "几倍卖回本",
    "en": "Take cost back at",
    "dzh": "涨到这个倍数先卖回本钱，剩下的零成本",
-   "den": "Sell enough to recover cost at this multiple"
+   "den": "Sell enough to recover cost at this multiple",
+   "tog": "max"
   },
   {
    "k": "sell.crash",
@@ -286,7 +308,8 @@
    "zh": "回本前回落全卖",
    "en": "Stop (before cost back)",
    "dzh": "还没回本时，从最高点跌这么多就全卖",
-   "den": "Sell all on this drawdown from peak"
+   "den": "Sell all on this drawdown from peak",
+   "tog": "max"
   },
   {
    "k": "sell.crashAfterBack",
@@ -298,19 +321,20 @@
    "zh": "回本后回落全卖",
    "en": "Stop (after cost back)",
    "dzh": "回本后放宽一点，让利润跑",
-   "den": "Looser stop once cost is recovered"
+   "den": "Looser stop once cost is recovered",
+   "tog": "max"
   },
   {
    "k": "rh.auto",
    "g": "rh",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "type": "bool",
    "zh": "Robinhood 自动打",
    "en": "Robinhood auto-buy",
-   "dzh": "关掉 = 只看盘不下单",
-   "den": "Off = watch only"
+   "dzh": "关掉 = 只看盘不下单（预设关，要自己打开才会买）",
+   "den": "Off = watch only (off by default — turn it on yourself)"
   },
   {
    "k": "rh.usd",
@@ -360,46 +384,50 @@
    "zh": "开池多久以内",
    "en": "Pool age within",
    "dzh": "只看刚开的池子",
-   "den": "Only fresh pools"
+   "den": "Only fresh pools",
+   "tog": "max"
   },
   {
    "k": "rh.minLiqUsd",
    "g": "rh",
    "def": 20000,
-   "min": 1000,
+   "min": 0,
    "max": 1000000,
    "unit": "美金",
    "uen": "USD",
    "zh": "流动性至少",
    "en": "Min liquidity",
    "dzh": "池子太小容易被砸",
-   "den": "Small pools are easy to dump"
+   "den": "Small pools are easy to dump",
+   "tog": "min"
   },
   {
    "k": "rh.minRealBuyers",
    "g": "rh",
    "def": 80,
-   "min": 5,
+   "min": 0,
    "max": 2000,
    "unit": "个",
    "uen": "buyers",
    "zh": "1 小时真实买家至少",
    "en": "Real buyers / 1h",
    "dzh": "只算老钱包（新开的分身钱包不算）",
-   "den": "Only aged wallets count (no fresh sybils)"
+   "den": "Only aged wallets count (no fresh sybils)",
+   "tog": "min"
   },
   {
    "k": "rh.oldNonce",
    "g": "rh",
    "def": 8,
-   "min": 1,
+   "min": 0,
    "max": 200,
    "unit": "笔",
    "uen": "txs",
    "zh": "老钱包＝交易过",
    "en": "Aged wallet = txs ≥",
    "dzh": "交易次数到这个才算真人",
-   "den": "Tx count to count as a real wallet"
+   "den": "Tx count to count as a real wallet",
+   "tog": "min"
   },
   {
    "k": "rh.minEth",
@@ -411,7 +439,8 @@
    "zh": "真人钱包至少有",
    "en": "Real wallet min ETH",
    "dzh": "钱包里要有这么多 ETH 才算真人（假钱包要押钱，造假成本变高）",
-   "den": "Wallet must hold this much ETH to count (makes fake wallets costly)"
+   "den": "Wallet must hold this much ETH to count (makes fake wallets costly)",
+   "tog": "min"
   },
   {
    "k": "rh.maxBundle",
@@ -423,7 +452,8 @@
    "zh": "捆绑钱包最多持有",
    "en": "Max bundled supply",
    "dzh": "开盘抢跑、新开钱包、买一样多的钱包合计",
-   "den": "Snipers + fresh wallets + identical buys combined"
+   "den": "Snipers + fresh wallets + identical buys combined",
+   "tog": "max"
   },
   {
    "k": "rh.maxTop10",
@@ -435,7 +465,8 @@
    "zh": "前 10 大最多",
    "en": "Max top-10 holders",
    "dzh": "筹码太集中容易被砸",
-   "den": "Concentrated supply is easy to dump"
+   "den": "Concentrated supply is easy to dump",
+   "tog": "max"
   },
   {
    "k": "rh.maxDev",
@@ -447,7 +478,8 @@
    "zh": "部署者最多持有",
    "en": "Max deployer share",
    "dzh": "项目方自己拿太多不打",
-   "den": "Skip if deployer holds more"
+   "den": "Skip if deployer holds more",
+   "tog": "max"
   },
   {
    "k": "rh.maxRoundTrip",
@@ -459,7 +491,8 @@
    "zh": "模拟买卖最多亏",
    "en": "Max round-trip loss",
    "dzh": "模拟买进马上卖亏超过就不买（税高或貔貅）",
-   "den": "Simulated buy→sell loss limit (tax / honeypot)"
+   "den": "Simulated buy→sell loss limit (tax / honeypot)",
+   "tog": "max"
   },
   {
    "k": "rh.lpDrop",
@@ -471,7 +504,8 @@
    "zh": "池子掉多少就跑",
    "en": "Exit on LP drop",
    "dzh": "买了以后池子少这么多 → 可能在抽池，全卖",
-   "den": "Liquidity drop that triggers full exit"
+   "den": "Liquidity drop that triggers full exit",
+   "tog": "max"
   },
   {
    "k": "rh.bundleSellPct",
@@ -483,7 +517,8 @@
    "zh": "捆绑钱包卖多少就跑",
    "en": "Exit when bundle sells",
    "dzh": "捆绑钱包卖超过总量这么多 → 全卖",
-   "den": "Bundle wallets selling this % of supply → exit"
+   "den": "Bundle wallets selling this % of supply → exit",
+   "tog": "max"
   },
   {
    "k": "rh.backX",
@@ -496,7 +531,8 @@
    "zh": "几倍卖回本",
    "en": "Take cost back at",
    "dzh": "Robinhood 自己的卖出规则（跟 BNB Chain 分开设）：涨到这个倍数先卖回本钱",
-   "den": "Same as BNB Chain"
+   "den": "Same as BNB Chain",
+   "tog": "max"
   },
   {
    "k": "rh.crash",
@@ -508,7 +544,8 @@
    "zh": "回本前回落全卖",
    "en": "Stop (before cost back)",
    "dzh": "还没回本时，从最高点跌这么多就全卖",
-   "den": "Same as BNB Chain"
+   "den": "Same as BNB Chain",
+   "tog": "max"
   },
   {
    "k": "rh.crashAfterBack",
@@ -520,19 +557,20 @@
    "zh": "回本后回落全卖",
    "en": "Stop (after cost back)",
    "dzh": "回本后，从最高点跌这么多就全卖",
-   "den": "Same as BNB Chain"
+   "den": "Same as BNB Chain",
+   "tog": "max"
   },
   {
    "k": "rh.mintAuto",
    "g": "rhmint",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "type": "bool",
    "zh": "自动铸造",
    "en": "Auto-mint",
-   "dzh": "关掉 = 只列出来、不自动铸",
-   "den": "Off = list only"
+   "dzh": "关掉 = 只列出来、不自动铸（预设关，要自己打开才会买）",
+   "den": "Off = list only (off by default — turn it on yourself)"
   },
   {
    "k": "rh.mintUsd",
@@ -562,14 +600,15 @@
    "k": "rh.mintMinReal",
    "g": "rhmint",
    "def": 50,
-   "min": 1,
+   "min": 0,
    "max": 100000,
    "unit": "个",
    "uen": "wallets",
    "zh": "真人钱包至少",
    "en": "Min real minters",
    "dzh": "这段时间内有这么多真人钱包在铸造才跟（真人＝交易够多次、身上有 ETH）",
-   "den": "Real wallets minting within the window"
+   "den": "Real wallets minting within the window",
+   "tog": "min"
   },
   {
    "k": "rh.mintWinMin",
@@ -594,7 +633,8 @@
    "zh": "新开钱包最多占",
    "en": "Max fresh wallets",
    "dzh": "铸造的人里新开钱包太多，可能是项目方自己刷",
-   "den": "Too many fresh wallets = likely self-minting"
+   "den": "Too many fresh wallets = likely self-minting",
+   "tog": "max"
   },
   {
    "k": "bscnft.auto",
@@ -605,8 +645,8 @@
    "type": "bool",
    "zh": "自动铸造",
    "en": "Auto-mint",
-   "dzh": "关掉 = 只列在面板上、不自动铸",
-   "den": "Off = list only"
+   "dzh": "关掉 = 只列在面板上、不自动铸（预设关，要自己打开才会买）",
+   "den": "Off = list only (off by default — turn it on yourself)"
   },
   {
    "k": "bscnft.usd",
@@ -636,14 +676,15 @@
    "k": "bscnft.minReal",
    "g": "bscnft",
    "def": 50,
-   "min": 1,
+   "min": 0,
    "max": 100000,
    "unit": "个",
    "uen": "wallets",
    "zh": "真人钱包至少",
    "en": "Min real minters",
    "dzh": "这段时间内有这么多真人钱包在铸才跟",
-   "den": "Real wallets minting in the window"
+   "den": "Real wallets minting in the window",
+   "tog": "min"
   },
   {
    "k": "bscnft.winMin",
@@ -668,20 +709,22 @@
    "zh": "新开钱包最多占",
    "en": "Max fresh wallets",
    "dzh": "太多新开钱包可能是项目方自己刷",
-   "den": "Too many = likely self-minting"
+   "den": "Too many = likely self-minting",
+   "tog": "max"
   },
   {
    "k": "bscnft.oldNonce",
    "g": "bscnft",
    "def": 8,
-   "min": 1,
+   "min": 0,
    "max": 1000,
    "unit": "笔",
    "uen": "txs",
    "zh": "真人＝交易过",
    "en": "Real = txs ≥",
    "dzh": "",
-   "den": ""
+   "den": "",
+   "tog": "min"
   },
   {
    "k": "bscnft.minBnb",
@@ -693,7 +736,8 @@
    "zh": "真人钱包至少有",
    "en": "Real wallet min BNB",
    "dzh": "",
-   "den": ""
+   "den": "",
+   "tog": "min"
   },
   {
    "k": "risk.dayLoss",
@@ -706,7 +750,8 @@
    "zh": "每天最多亏",
    "en": "Max loss per day",
    "dzh": "今天卖出的币合计亏超过这个数，全部自动买暂停（0 = 不限）",
-   "den": "If today's sells lose more than this in total, all auto-buy pauses (0 = off)"
+   "den": "If today's sells lose more than this in total, all auto-buy pauses (0 = off)",
+   "tog": "min"
   },
   {
    "k": "risk.noProxy",
@@ -718,31 +763,492 @@
    "zh": "可升级的合约不打（预设关）",
    "en": "Skip upgradeable contracts (off by default)",
    "dzh": "项目方能换掉合约规则的（代理／可升级合约）不打。有些正常项目也是这种合约，打开可能错过好项目，所以预设关",
-   "den": "Skip proxy / upgradeable contracts. Some legit projects use them too, so it is off by default"
+   "den": "Skip proxy / upgradeable contracts. Some legit projects use them too, so it is off by default",
+   "sug": 0
   },
   {
    "k": "risk.probe",
    "g": "risk",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "先小额试水",
    "en": "Test with one wallet first",
    "dzh": "第一个钱包真的收到东西，第二个钱包才跟着打",
-   "den": "The 2nd wallet only buys after the 1st one actually received the asset"
+   "den": "The 2nd wallet only buys after the 1st one actually received the asset",
+   "sug": 1
   },
   {
    "k": "risk.blacklist",
    "g": "risk",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
    "zh": "用官方黑名单",
    "en": "Use official blacklist",
    "dzh": "其他雷达回报过的诈骗合约、部署者，直接不打",
-   "den": "Skip scam contracts / deployers reported by other radars"
+   "den": "Skip scam contracts / deployers reported by other radars",
+   "sug": 1
+  },
+  {
+   "k": "risk.serialDev",
+   "g": "risk",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "部署者连续发币不打",
+   "en": "Skip serial deployers",
+   "dzh": "同一个地址短时间发很多币（批量割韭菜），这个地址发的都不打",
+   "den": "Skip tokens from an address that launches many tokens in a short time",
+   "sug": 1
+  },
+  {
+   "k": "risk.firstOnly",
+   "g": "risk",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "同名仿盘不打，只认第一个",
+   "en": "Skip copycats — only the first of a name",
+   "dzh": "同时有好几个同名币时，只认最早发的那个，其他的不打",
+   "den": "When several tokens share a name, only the earliest one is eligible",
+   "sug": 1
+  },
+  {
+   "k": "risk.hoursOn",
+   "g": "risk",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "只在特定时段自动打",
+   "en": "Only auto-buy during set hours",
+   "dzh": "打开后，只在下面的时段内自动买（例如睡觉时不打）。卖出不受影响",
+   "den": "When on, auto-buy only runs within the hours below. Selling is not affected",
+   "sug": 0
+  },
+  {
+   "k": "risk.hourFrom",
+   "g": "risk",
+   "def": 9,
+   "min": 0,
+   "max": 23,
+   "unit": "点",
+   "uen": ":00",
+   "zh": "从几点开始",
+   "en": "From",
+   "dzh": "24 小时制，例如 9 = 早上 9 点",
+   "den": "24-hour clock"
+  },
+  {
+   "k": "risk.hourTo",
+   "g": "risk",
+   "def": 24,
+   "min": 1,
+   "max": 24,
+   "unit": "点",
+   "uen": ":00",
+   "zh": "到几点结束",
+   "en": "Until",
+   "dzh": "24 = 半夜 12 点；可以跨夜，例如 22 到 6",
+   "den": "24 = midnight; can wrap past midnight"
+  },
+  {
+   "k": "risk.lossStreak",
+   "g": "risk",
+   "def": 3,
+   "min": 0,
+   "max": 50,
+   "unit": "笔",
+   "uen": "trades",
+   "zh": "连亏几笔自动暂停",
+   "en": "Pause after N losing trades in a row",
+   "dzh": "连续卖出亏钱达到这个笔数，就自动暂停买入，等你看过再恢复",
+   "den": "After this many losing sells in a row, buying pauses until you resume it",
+   "tog": "min"
+  },
+  {
+   "k": "risk.lossManual",
+   "g": "risk",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "手动／一键买的亏损也算进去",
+   "en": "Count manual / one-tap losses too",
+   "dzh": "打开后，「每天最多亏」和「连亏几笔自动暂停」也会把你自己手动买的亏损算进去（预设只算雷达自动买的）",
+   "den": "When on, the daily-loss fuse and the loss-streak pause also count losses on coins you bought manually (by default only auto-buys count)",
+   "sug": 0
+  },
+  {
+   "k": "rh.noDanger",
+   "g": "rh",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "合约有危险权限不打",
+   "en": "Skip contracts with dangerous powers",
+   "dzh": "能增发、能暂停交易、有黑名单，而且开发者还没放弃权限的，不打",
+   "den": "Skip if it can mint more, pause trading or blacklist, and the dev hasn't renounced",
+   "sug": 1
+  },
+  {
+   "k": "rh.needSocial",
+   "g": "rh",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "只买有官方 X／TG 的币",
+   "en": "Only tokens with an official X / TG",
+   "dzh": "没有官方社群连结的币一律跳过",
+   "den": "Skip tokens without official social links",
+   "sug": 0
+  },
+  {
+   "k": "rh.mcMin",
+   "g": "rh",
+   "def": 0,
+   "min": 0,
+   "max": 100000000,
+   "unit": "美金",
+   "uen": "USD",
+   "zh": "市值至少",
+   "en": "Market cap at least",
+   "dzh": "市值低于这个数的不买（0 = 不限）",
+   "den": "Skip tokens below this market cap (0 = no limit)",
+   "tog": "min"
+  },
+  {
+   "k": "rh.mcMax",
+   "g": "rh",
+   "def": 0,
+   "min": 0,
+   "max": 1000000000,
+   "unit": "美金",
+   "uen": "USD",
+   "zh": "市值最多",
+   "en": "Market cap at most",
+   "dzh": "市值高于这个数的不买（0 = 不限）",
+   "den": "Skip tokens above this market cap (0 = no limit)",
+   "tog": "min"
+  },
+  {
+   "k": "rh.needCall",
+   "g": "rh",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "被监测的频道／X 喊过才买",
+   "en": "Only after a watched channel / X account called it",
+   "dzh": "只有你在「信号」页监测的 TG 频道或 X 帐号贴过的币才会自动买",
+   "den": "Only auto-buy tokens posted by the TG channels / X accounts you watch on the Signals page",
+   "sug": 0
+  },
+  {
+   "k": "rh.timeStopMin",
+   "g": "rhsell",
+   "def": 0,
+   "min": 0,
+   "max": 1440,
+   "unit": "分钟",
+   "uen": "min",
+   "zh": "买进几分钟没涨就卖",
+   "en": "Sell if no gain after N minutes",
+   "dzh": "买进超过这个时间还没涨（没到 1.05 倍）就全卖，不让钱卡住（0 = 不用）",
+   "den": "Sell everything if it hasn't gained (below 1.05×) after this long (0 = off)",
+   "tog": "min"
+  },
+  {
+   "k": "rh.antiWash",
+   "g": "rh",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "假热度不打",
+   "en": "Skip fake hype",
+   "dzh": "买单一面倒、几乎没人卖（像机器人刷出来的热度）就跳过",
+   "den": "Skip tokens where buys are one-sided with almost no sells (looks bot-pumped)",
+   "sug": 1
+  },
+  {
+   "k": "rh.needSmart",
+   "g": "rh",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "聪明钱包也买了才跟",
+   "en": "Only if a smart wallet bought too",
+   "dzh": "你在「信号」页标记的聪明钱包 6 小时内也买过，才自动买",
+   "den": "Only auto-buy if a smart wallet you marked on the Signals page bought it in the last 6 h",
+   "sug": 0
+  },
+  {
+   "k": "rh.devSellRun",
+   "g": "rhsell",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "开发者一卖就跑",
+   "en": "Exit when the dev sells",
+   "dzh": "买进后，部署者转出超过总量 0.5% 就马上全卖",
+   "den": "After buying, sell everything as soon as the deployer moves out more than 0.5% of supply",
+   "sug": 1
+  },
+  {
+   "k": "gen.auto",
+   "g": "gen",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "自动买",
+   "en": "Auto-buy",
+   "dzh": "预设关。打开后，BNB Chain 新币（Flap／Four／Genius／新池）全部符合下面条件才会自动买；要开着雷达才有候选",
+   "den": "Off by default. When on, new BNB Chain tokens (Flap / Four / Genius / new pools) are auto-bought only if every rule below passes; the radar must be open"
+  },
+  {
+   "k": "gen.usd",
+   "g": "gen",
+   "def": 5,
+   "min": 1,
+   "max": 1000000000.0,
+   "unit": "U",
+   "zh": "每笔",
+   "en": "Per buy",
+   "dzh": "每次自动买多少（用 BNB 付，50U 以上自动拆单防夹）",
+   "den": "Size per auto-buy (paid in BNB; 50U+ is split to limit sandwiching)"
+  },
+  {
+   "k": "gen.dayUsd",
+   "g": "gen",
+   "def": 20,
+   "min": 1,
+   "max": 1000000000.0,
+   "unit": "U",
+   "zh": "每天最多花",
+   "en": "Daily cap",
+   "dzh": "一天自动买的总金额上限",
+   "den": "Total auto-buy spend per day"
+  },
+  {
+   "k": "gen.maxPos",
+   "g": "gen",
+   "def": 3,
+   "min": 0,
+   "max": 50,
+   "unit": "个",
+   "zh": "同时最多持有",
+   "en": "Max open positions",
+   "dzh": "这个策略买进、还没卖完的币最多几个",
+   "den": "Max tokens bought by this strategy and still held"
+  },
+  {
+   "k": "gen.maxAgeMin",
+   "g": "gen",
+   "def": 180,
+   "min": 5,
+   "max": 1440,
+   "unit": "分钟",
+   "uen": "min",
+   "zh": "开盘多久以内",
+   "en": "Launched within",
+   "dzh": "只买刚上池子的新币",
+   "den": "Only fresh tokens",
+   "tog": "max"
+  },
+  {
+   "k": "gen.minLiqUsd",
+   "g": "gen",
+   "def": 15000,
+   "min": 0,
+   "max": 1000000,
+   "unit": "美金",
+   "uen": "USD",
+   "zh": "流动性至少",
+   "en": "Min liquidity",
+   "dzh": "池子太小容易被砸",
+   "den": "Small pools are easy to dump",
+   "tog": "min"
+  },
+  {
+   "k": "gen.mcMin",
+   "g": "gen",
+   "def": 0,
+   "min": 0,
+   "max": 100000000,
+   "unit": "美金",
+   "uen": "USD",
+   "zh": "市值至少",
+   "en": "Market cap at least",
+   "dzh": "市值低于这个数的不买",
+   "den": "Skip below this market cap",
+   "tog": "min"
+  },
+  {
+   "k": "gen.mcMax",
+   "g": "gen",
+   "def": 300000,
+   "min": 0,
+   "max": 1000000000,
+   "unit": "美金",
+   "uen": "USD",
+   "zh": "市值最多",
+   "en": "Market cap at most",
+   "dzh": "市值高于这个数的不买（太高通常已经涨完）",
+   "den": "Skip above this market cap",
+   "tog": "min"
+  },
+  {
+   "k": "gen.minBuys",
+   "g": "gen",
+   "def": 30,
+   "min": 0,
+   "max": 100000,
+   "unit": "笔",
+   "zh": "1 小时买单至少",
+   "en": "Min buys (1h)",
+   "dzh": "最近 1 小时买单笔数",
+   "den": "Buy count in the last hour",
+   "tog": "min"
+  },
+  {
+   "k": "gen.maxTax",
+   "g": "gen",
+   "def": 10,
+   "min": 0,
+   "max": 50,
+   "unit": "%",
+   "zh": "买卖税最多",
+   "en": "Max tax",
+   "dzh": "税超过就不买；查不到模拟卖出结果也不买",
+   "den": "Skip higher tax; also skip if the sell simulation is unavailable",
+   "tog": "max"
+  },
+  {
+   "k": "gen.maxBundle",
+   "g": "gen",
+   "def": 15,
+   "min": 0,
+   "max": 100,
+   "unit": "%",
+   "zh": "捆绑钱包最多",
+   "en": "Max bundled wallets",
+   "dzh": "开盘一起买、新开钱包、同数量买的钱包合计持有超过就不买",
+   "den": "Skip if launch-bundled / fresh / identical-size wallets hold more than this",
+   "tog": "max"
+  },
+  {
+   "k": "gen.maxTop10",
+   "g": "gen",
+   "def": 30,
+   "min": 0,
+   "max": 100,
+   "unit": "%",
+   "zh": "前 10 大最多",
+   "en": "Max top-10 holders",
+   "dzh": "前 10 大钱包合计持有超过就不买",
+   "den": "Skip if the top 10 wallets hold more than this",
+   "tog": "max"
+  },
+  {
+   "k": "gen.minReal",
+   "g": "gen",
+   "def": 20,
+   "min": 0,
+   "max": 10000,
+   "unit": "个",
+   "zh": "真实买家至少",
+   "en": "Min real buyers",
+   "dzh": "最近 1 小时不同的真实买家（排除小号）",
+   "den": "Distinct real buyers in the last hour (excluding sybils)",
+   "tog": "min"
+  },
+  {
+   "k": "gen.needX",
+   "g": "gen",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "只买有官方 X 的币",
+   "en": "Only tokens with an official X",
+   "dzh": "没有官方 X 连结就跳过",
+   "den": "Skip tokens without an official X link",
+   "sug": 1
+  },
+  {
+   "k": "gen.antiWash",
+   "g": "gen",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "假热度不打",
+   "en": "Skip fake hype",
+   "dzh": "只有买没有卖（像机器人刷的）就跳过",
+   "den": "Skip one-sided buying with almost no sells (bot-pumped)",
+   "sug": 1
+  },
+  {
+   "k": "gen.needSmart",
+   "g": "gen",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "聪明钱包也买了才跟",
+   "en": "Only if a smart wallet bought",
+   "dzh": "你在「信号」页标记的聪明钱包 6 小时内买过才买",
+   "den": "Only if a smart wallet you marked bought in the last 6 h",
+   "sug": 0
+  },
+  {
+   "k": "gen.needCall",
+   "g": "gen",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "有 KOL 喊单才买",
+   "en": "Only after a KOL call",
+   "dzh": "「信号」页的喊单频道提过这个币才买",
+   "den": "Only if a call channel on the Signals page mentioned it",
+   "sug": 0
+  },
+  {
+   "k": "agc.auto",
+   "g": "agc",
+   "type": "bool",
+   "def": 0,
+   "min": 0,
+   "max": 1,
+   "zh": "每天自动免费挖 AGC",
+   "en": "Auto free-mine AGC daily",
+   "dzh": "预设关。agcc.fun 的「A 免费挖」：每份押 0.002 BNB，24 小时后雷达自动领回 BNB＋AGC。要有 Agent ID。不做入池挖",
+   "den": "Off by default. agcc.fun “A free mining”: 0.002 BNB per share is locked and refunded after 24 h, when the radar claims your BNB + AGC. Needs an Agent ID. Pool mining is never used"
+  },
+  {
+   "k": "agc.maxShares",
+   "g": "agc",
+   "def": 5,
+   "min": 1,
+   "max": 20,
+   "unit": "份",
+   "uen": "shares",
+   "zh": "每天最多挖几份",
+   "en": "Max shares per day",
+   "dzh": "每个钱包每天最多押几份（每份 0.002 BNB）；合约自己有额度，超过的会自动挖少一点",
+   "den": "Per wallet per day (0.002 BNB each); the contract has its own quota and the radar steps down automatically"
   }
  ]
 }

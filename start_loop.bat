@@ -6,6 +6,7 @@ set FAILS=0
 if exist WATCH_STOP goto end
 node watch.mjs >> data\watch_console.log 2>&1
 set RC=%errorlevel%
+if "%RC%"=="9" goto end
 if exist WATCH_STOP goto end
 if "%RC%"=="0" set FAILS=0
 if "%RC%"=="1" if exist data\update_backup.mjs set /a FAILS+=1

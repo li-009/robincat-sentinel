@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const SELF = fileURLToPath(import.meta.url), SELF_MT = statSync(SELF).mtimeMs;
+/* 她 11/2 20:14：新版不沿用旧版的设定、邀请码、绑定（防止旧资料被拿来套用）；持仓追踪保留，还没卖的币照样自动止盈止损。旧档搬到 data/_old_v1，不删除。个人版不受影响 */
+if (!existsSync(join(DIR, '.sign'))) { try { const DD = join(DIR, 'data'), EF = join(DD, 'epoch.txt'); if (!existsSync(EF)) { mkdirSync(DD, { recursive: true }); const OD = join(DD, '_old_v1'); for (const f of ['radar_settings.json', 'bind.json']) { const fp = join(DD, f); if (existsSync(fp)) { mkdirSync(OD, { recursive: true }); renameSync(fp, join(OD, f)); } } writeFileSync(EF, '2'); } } catch {} }
 const LOG = join(DIR, 'data', 'watch.log'), STATE = join(DIR, 'data', 'watch_state.json');
 if (process.argv.includes('--tg-login')) { /* 選用功能：TG 群組監控的一次性登入（金鑰、手機、登入碼都由使用者自己在這個視窗輸入，只存在本機 data/tg_user.json） */
   const { createRequire } = await import('node:module'); const req = createRequire(import.meta.url); const rl = (await import('node:readline')).createInterface({ input: process.stdin, output: process.stdout }); const ask = (q) => new Promise((r) => rl.question(q, (x) => r(x.trim())));
@@ -22,7 +24,7 @@ if (process.argv.includes('--tg-login')) { /* 選用功能：TG 群組監控的�
   mkdirSync(join(DIR, 'data'), { recursive: true }); writeFileSync(join(DIR, 'data', 'tg_user.json'), JSON.stringify({ apiId, apiHash, session: cl.session.save() }));
   console.log('\n✅ 登入成功，工具會自動讀你加入的群組（只讀不發）。這個視窗可以關掉了。\n⚠️ data/tg_user.json 等於你的 TG 登入，不要傳給別人；不想用了就刪掉這個檔案。'); await cl.disconnect(); rl.close(); process.exit(0);
 }
-{ /* 審查 11/1：同時跑兩份會重複鑄造、重複賣、互相覆蓋紀錄 → 只允許一份在跑 */ const lk = join(DIR, 'data', 'watch.lock'); try { const old = existsSync(lk) ? Number(readFileSync(lk, 'utf8')) : 0; if (old && old !== process.pid) { let alive = false; try { process.kill(old, 0); alive = true; } catch {} if (alive) { console.log(`已經有一份在執行（PID ${old}），這份不重複啟動`); process.exit(0); } } writeFileSync(lk, String(process.pid)); process.on('exit', () => { try { if (Number(readFileSync(lk, 'utf8')) === process.pid) unlinkSync(lk); } catch {} }); } catch {} }
+{ /* 審查 11/1：同時跑兩份會重複鑄造、重複賣、互相覆蓋紀錄 → 只允許一份在跑 */ const lk = join(DIR, 'data', 'watch.lock'); try { const old = existsSync(lk) ? Number(readFileSync(lk, 'utf8')) : 0; if (old && old !== process.pid) { let alive = false; try { process.kill(old, 0); alive = true; } catch {} if (alive) { console.log(`已經有一份在執行（PID ${old}），這份不重複啟動`); process.exit(9); } /* 11/2 22:45：用 9 告诉启动脚本「已经有一份」→ 这个多出来的启动脚本直接结束，不会每 5 秒空转 */ } writeFileSync(lk, String(process.pid)); process.on('exit', () => { try { if (Number(readFileSync(lk, 'utf8')) === process.pid) unlinkSync(lk); } catch {} }); } catch {} }
 const ts = () => new Date().toLocaleString('zh-TW', { hour12: false, timeZone: CONFIG.timeZone || 'Asia/Taipei' });
 const log = (s) => { try { appendFileSync(LOG, `[${ts()}] ${s}\n`); } catch {} };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -198,11 +200,11 @@ const w = (n) => BigInt(n).toString(16).padStart(64, '0');
 const wa = (a) => a.toLowerCase().replace(/^0x/, '').padStart(64, '0');
 const call = (to, data) => rpc('eth_call', [{ to, data }, 'latest']).catch(() => null);
 const big = (h) => (h && h !== '0x' ? BigInt(h.slice(0, 66)) : 0n);
-async function usdtFree(W) { const b = (await usdtFree(W)); if (W !== WALLETS[0]) return b; const r = BigInt(Math.floor((globalThis.PLUG_RESERVE_FN?.() || 0) * 1e6)) * 10n ** 12n; return b > r ? b - r : 0n; } /* 11/2：扣掉外挂今天还要用的 USDT，雷达铸造不会吃掉外挂的本金（不够就照旧把 BNB 换成 USDT） */
+async function usdtFree(W) { const b = big(await call(USDT, '0x70a08231' + wa(W.addr))); if (W !== WALLETS[0]) return b; const r = BigInt(Math.floor((globalThis.PLUG_RESERVE_FN?.() || 0) * 1e6)) * 10n ** 12n; return b > r ? b - r : 0n; } /* 11/2：扣掉外挂今天还要用的 USDT，雷达铸造不会吃掉外挂的本金（不够就照旧把 BNB 换成 USDT） */
 const parseOut = (res) => (e, so, se) => { const t = String(so || se || e?.message || ''); let j = null; try { j = JSON.parse(t.slice(t.indexOf('{'))); } catch {} res({ t, j }); };
 // 每個錢包一個 baw（幣安 Agentic Wallet CLI）。第二個以後的錢包用獨立的 BINANCE_BAW_DIR / BINANCE_INSTANCE_ID（見 README）
 function makeBaw(wc) {
-  if (!wc.bawDir) return (args, timeout = 180000) => new Promise((res) => execFile('baw', [...args, '--json'], { shell: true, windowsHide: true, timeout, maxBuffer: 4 << 20 }, parseOut(res)));
+  if (!wc.bawDir) return Object.assign((args, timeout = 180000) => new Promise((res) => execFile('baw', [...args, '--json'], { shell: true, windowsHide: true, timeout, maxBuffer: 4 << 20 }, parseOut(res))), { sh: 1 });
   const env = { ...process.env, BINANCE_BAW_DIR: join(DIR, wc.bawDir), BINANCE_INSTANCE_ID: wc.instanceId || wc.name };
   const bin = join(DIR, wc.bawPkg || 'baw2pkg', 'node_modules', '@binance', 'agentic-wallet', 'dist', 'index.js');
   return (args, timeout = 180000) => new Promise((res) => execFile(process.execPath, [bin, ...args, '--json'], { env, windowsHide: true, timeout, maxBuffer: 4 << 20 }, parseOut(res)));
@@ -257,7 +259,9 @@ async function dexScreener(addr) { /* 使用者 10/31 19:55：不管跟什麼幣
   if (!v) v = await geckoPool(addr); /* 除錯 11/1：NOV 的池子開在 PancakeSwap Infinity，DexScreener 一直沒收錄，工具以為沒開盤、也讀不到價格 → 再用 GeckoTerminal 查（Infinity、Uniswap v4、V3 都有） */
   dsCache.set(addr, { t: Date.now(), v }); return v;
 }
-async function geckoPool(addr) {
+const GPC = new Map(); let gpLast = 0; /* 11/2：GeckoTerminal 免费版每分钟次数很少，持仓多的时候会把额度用光（连雷达的热门代币都读不到）→ 结果记 10 分钟、两次之间至少隔 2.5 秒 */
+async function geckoPool(addr) { const c = GPC.get(addr); if (c && Date.now() - c.t < 600e3) return c.v; const w = gpLast + 2500 - Date.now(); gpLast = Math.max(Date.now(), gpLast + 2500); if (w > 0) { if (w > 20e3) return c?.v ?? null; await sleep(w); } const v = await geckoPool0(addr); GPC.set(addr, { t: Date.now(), v }); if (GPC.size > 500) GPC.delete(GPC.keys().next().value); return v; }
+async function geckoPool0(addr) {
   try {
     const j = await (await fetch(`https://api.geckoterminal.com/api/v2/networks/bsc/tokens/${addr}/pools`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(10000) })).json();
     const ps = (j.data || []).map((p) => { const a = p.attributes || {}, base = String(p.relationships?.base_token?.data?.id || '').toLowerCase().endsWith(addr); return { id: String(a.address || '').toLowerCase(), name: a.name || '', dex: String(p.relationships?.dex?.data?.id || 'gecko'), px: Number(base ? a.base_token_price_usd : a.quote_token_price_usd) || 0, liq: Number(a.reserve_in_usd) || 0 }; }).filter((x) => x.px > 0 && x.liq > 50).sort((x, y) => y.liq - x.liq);
@@ -322,7 +326,7 @@ async function sellInner(t, st, amt, why, W) {
   await sleep(15000);
   const bnb1 = BigInt((await rpc('eth_getBalance', [W.addr, 'latest']).catch(() => '0x0')) || '0x0');
   const got = Number(bnb1 - bnb0) / 1e18, px = await bnbUsd().catch(() => 0), gotU = got * px; // 賣出實際換回多少（使用者想知道每筆拿回多少錢）
-  S.trades = S.trades || []; S.trades.push({ sym: t.sym, w: W.name, bnb: +got.toFixed(6), usd: +gotU.toFixed(2), cost: t.cost || 0, at: ts(), why });
+  S.trades = S.trades || []; const cp = t.cost > 0 && st.qty0 > 0 ? +(t.cost * Math.min(1, Number(qty) / st.qty0)).toFixed(2) : 0; /* 11/2 22:40：这一笔卖掉的部分对应多少成本（分批卖才不会算成大亏） */ S.trades.push({ sym: t.sym, w: W.name, bnb: +got.toFixed(6), usd: +gotU.toFixed(2), cost: t.cost || 0, cp, manual: t.src === 'manual' ? 1 : 0, at: ts(), why });
   await tg(`💰 [${W.name}] 已賣出 ${t.sym}（${why}）\n數量 ${qty}${got > 0 ? `\n換回 ${got.toFixed(5)} BNB（約 ${gotU.toFixed(2)}U）` : ''}\n訂單 ${r.j.data?.orderId || ''}`);
   return true;
 }
@@ -347,14 +351,15 @@ async function holdings(head, onlyFast = false) {
 async function holdW(W, head, onlyFast) { // 所有錢包同時跑（速戰：賣單不排隊）
   for (const t0 of TOKENS.concat(S.dyn || [])) {
     if (t0.only && t0.only !== W.addr) continue;
-    const t = { ...t0, cost: (t0.only || t0.both || W.addr === ME) ? t0.cost : 0 };
+    const t = { ...t0, cost: (t0.only || t0.both || W.addr === ME) ? t0.cost : 0, hold: t0.hold || t0.src === 'manual' }; /* 她 11/2 22:15 选 B：手动／一键买的不自动卖，只通知倍数 */
     const dupSym = TOKENS.concat(S.dyn || []).filter((x) => (!x.only || x.only === W.addr) && x.sym === t.sym && x.addr !== t.addr).length > 0; /* 審查修正：不同幣同名（像兩個 555、兩個 CIOW）以前共用同一份紀錄，餘額來回跳 */
     const key = (W.addr === ME ? t.sym : W.name + ':' + t.sym) + (dupSym ? '#' + t.addr.slice(2, 8) : '');
     const st = (S.tokens[key] = S.tokens[key] || { hist: [], peak: 0, peakAt: 0, sold: 0 });
     if (onlyFast && !(st.openAt && Date.now() - st.openAt < RULE.fastMin * 60e3 && st.stage !== 9 && !st.done)) continue;
     if (!onlyFast && st.openAt && Date.now() - st.openAt < RULE.fastMin * 60e3 && st.stage !== 9 && !st.done && st.pair) continue; /* v2.8.2：刚开盘 30 分钟内的只交给密集检查，完整检查跳过，避免重复部分卖出 */
     if (!onlyFast && st.done && st.doneAt && Date.now() - st.doneAt < 30 * 60e3) continue; /* v2.8.0：卖完（余额 0）的旧持仓 30 分钟才重查一次，整轮更快 */
-    const balR = await call(t.addr, '0x70a08231' + wa(W.addr)); if (balR == null) continue; /* 查詢失敗不當成 0（以前會一直誤報「收到幣」） */ const bal = big(balR);
+    const noPx = async () => { if (!(t.cost > 0) || t.hold || st.done || st.stage >= 9) return; st.noPxAt = st.noPxAt || Date.now(); if (!st.noPxWarn && Date.now() - st.noPxAt > 10 * 60e3) { st.noPxWarn = 1; await tg(`⚠️ [${W.name}] ${t.sym} 已经 10 分钟读不到价格／余额（节点或行情来源断线）。\n这段时间雷达没办法帮你止盈止损，读到之后会自动恢复并通知你。很担心的话可以先自己卖。\n${t.addr}`).catch(() => {}); } }; /* 她 11/2 22:35：读不到数据就是没在保护你的钱 → 要讲 */
+    const balR = await call(t.addr, '0x70a08231' + wa(W.addr)); if (balR == null) { await noPx(); continue; } /* 查詢失敗不當成 0（以前會一直誤報「收到幣」） */ const bal = big(balR);
     const prevBal = BigInt(st.lastBal || '0'); st.lastBal = bal.toString();
     if (bal > prevBal && st.balInit) { const v0 = await valueUsd(t, bal - prevBal); await tg(`🎁 [${W.name}] 收到 ${t.sym} ${(Number(bal - prevBal) / 1e18).toLocaleString()} 顆${v0 != null ? '，約值 ' + v0.toFixed(2) + 'U' : '（還沒有池子可以報價）'}\n會自動追蹤，到高點就賣`); }
     st.balInit = true;
@@ -366,7 +371,7 @@ async function holdW(W, head, onlyFast) { // 所有錢包同時跑（速戰：�
       if (p) { st.pair = p.pair; if (p.ds) { st.pairDs = 1; st.pairInfo = `${p.dex}，跟 ${p.quote} 配對`; } st.openAt = st.openAt || Date.now(); st.fromBlock = head - 400; if (!first) await honeypotCheck(W, t, st, bal); if (!first) await tg(`🚀 ${t.sym} 開池了（${st.pairInfo || 'PancakeSwap'}）\n合約 ${t.addr}\n池子 ${p.pair}\n開始追蹤價格，達到高點會自動賣`); }
       else { if (t0.deployer && t0.boughtAt && Date.now() - t0.boughtAt > 48 * 3600e3) blacklist(t0.deployer, `${t.sym} 打完 48 小時還沒開池`); continue; }
     }
-    const v = await valueUsd(t, bal); if (v == null) continue; st.curV = v;
+    const v = await valueUsd(t, bal); if (v == null) { await noPx(); continue; } st.curV = v; if (st.noPxAt) { if (st.noPxWarn) await tg(`✅ [${W.name}] ${t.sym} 又读得到价格了（约 ${v.toFixed(2)}U），止盈止损恢复正常`).catch(() => {}); st.noPxAt = 0; st.noPxWarn = 0; }
     // 用「每顆價格」算高點和倍數（審查修正：賣掉一部分後持倉變少，不會再被誤判成暴跌）
     const dec = await tokDec(t.addr); const balN = Number(bal) / 10 ** dec || 1e-18; const px = v / balN;
     if (!st.qty0 || balN > st.qty0 * 1.0001) st.qty0 = balN; // 原始持有量
@@ -826,7 +831,7 @@ async function preventWhy(c) {
 function lossToday() {
   try { const d0 = new Date(); d0.setHours(0, 0, 0, 0); const t0 = d0.getTime(); let loss = 0;
     const lines = readFileSync(join(DIR, 'data', 'journal.jsonl'), 'utf8').split('\n').slice(-3000);
-    for (const l of lines) { if (!l.trim()) continue; let x; try { x = JSON.parse(l); } catch { continue; } if ((x.at || 0) < t0 || x.side !== '卖' || !(+x.cost > 0)) continue; loss += (+x.cost) - (+x.usd || 0); }
+    for (const l of lines) { if (!l.trim()) continue; let x; try { x = JSON.parse(l); } catch { continue; } if ((x.at || 0) < t0 || x.side !== '卖' || x.old || !(+x.cp > 0) || x.usd == null || (x.manual && Number(radarSet()['risk.lossManual']) !== 1)) continue; loss += (+x.cp) - (+x.usd || 0); } /* 11/2 22:40 逆向：以前日记没记成本，保险丝永远不会跳；手动买的预设不算（用户可以打开） */
     return loss; } catch { return 0; }
 }
 setInterval(() => { try { const cap = Number(radarSet()['risk.dayLoss'] ?? 30); if (!(cap > 0)) return; const k = new Date().toDateString(); if (S.fuseDay === k) return; const loss = lossToday(); if (loss <= cap) return;
@@ -1311,7 +1316,7 @@ function riskAfter(W, c, tx, valWei, isFree, countFee = true) { /* 送出後記�
   if (!tx || !/^0x[0-9a-f]{64}$/i.test(tx)) return;
   (async () => { for (let i = 0; i < 6; i++) { await sleep(5000); const r = await rpc('eth_getTransactionReceipt', [tx]).catch(() => null); if (!r) continue; const gas = (Number(BigInt(r.gasUsed || '0x0')) * Number(BigInt(r.effectiveGasPrice || '0x0'))) / 1e18; const R2 = riskDay(); R2.spend[W.name] = (R2.spend[W.name] || 0) + gas; if (r.status === '0x0') { R2.rev[c] = (R2.rev[c] || 0) + 1; log(`[${W.name}] 上鏈失敗（白燒 gas ${gas.toFixed(5)} BNB）：${c}，今天第 ${R2.rev[c]} 次`); } save(); return; } })().catch(() => {});
 }
-async function serialDev(c) { const dep = (S.depFrom || {})[c]; if (!dep) return ''; /* 只用「實際送出部署交易的錢包」判斷，不用 owner()（發射台的項目 owner 常是同一個平台，會誤殺） */ const n = new Set(((S.devs || {})[dep] || []).filter((x) => Date.now() - x.t < 86400e3).map((x) => x.c)).size; return n >= DEV_MAX ? `同一個部署者 ${dep.slice(0, 10)}… 24 小時內部署了 ${n} 個項目` : ''; }
+async function serialDev(c) { if (+radarSet()['risk.serialDev'] === 0) return ''; /* 她 11/2：内建规矩变按键 */ const dep = (S.depFrom || {})[c]; if (!dep) return ''; /* 只用「實際送出部署交易的錢包」判斷，不用 owner()（發射台的項目 owner 常是同一個平台，會誤殺） */ const n = new Set(((S.devs || {})[dep] || []).filter((x) => Date.now() - x.t < 86400e3).map((x) => x.c)).size; return n >= DEV_MAX ? `同一個部署者 ${dep.slice(0, 10)}… 24 小時內部署了 ${n} 個項目` : ''; }
 function isRepeatDev(dep) { return !!dep && new Set(((S.devs || {})[dep] || []).filter((x) => Date.now() - x.t < 86400e3).map(devKey)).size >= 3; }
 function blacklist(dep, why) { if (!dep) return; S.black = S.black || {}; if (!S.black[dep]) { S.black[dep] = { at: ts(), why }; log(`黑名單：${dep}（${why}）`); } }
 
@@ -1349,7 +1354,23 @@ function applySettings(set) {
   globalThis.RH_APPLY?.(set, SCHEMA);
 }
 setInterval(() => { try { radarSet(); } catch {} }, 15e3).unref();
-const radarOff = () => existsSync(join(DIR, 'data', 'pause_buy.txt')) || radarSet().auto === false || (!radarSet().setupDone && existsSync(join(DIR, 'radar', 'main.cjs'))) || (existsSync(join(DIR, 'radar', 'main.cjs')) && !existsSync(join(DIR, '.sign')) && !/^([0-9a-f]{8}|nancy)$/i.test(String(radarSet()['ref.code'] || ''))); /* 11/2：要有邀请码才会自动买（没有就只看盘） */ /* 有装罗宾猫雷达的：第一次打开还没选打法（setupDone）之前不自动买；只用 /update 更新单档的旧用户不受影响 */ /* 暂停／关掉自动打：只停自动买，卖出照常 */
+const BINDF = join(DIR, 'data', 'bind.json'); let BJ = { at: 0, ok: false };
+function bindJoinOk() { if (Date.now() - BJ.at < 10e3) return BJ.ok; BJ.at = Date.now(); const c = String(radarSet()['ref.code'] || '').toLowerCase(); try { const B = JSON.parse(readFileSync(BINDF, 'utf8')); BJ.ok = !!(B.join?.sig && B.join.code === c && B.join.wallet === WALLETS[0]?.addr); } catch { BJ.ok = false; } return BJ.ok; } /* 11/2：邀请码要用钱包签好名才算数 */
+/* 她 11/2 20:15：同一台电脑开了两个雷达（例如新旧版）又用同一个钱包 → 会重复下单。全电脑共用一个锁：先开的那个照常，后开的自动停买并提醒 */
+const LOCKD = join(process.env.USERPROFILE || process.env.HOME || DIR, '.robincat'); let CONFL = '';
+function otherEngine() { for (const W of WALLETS) { try { const o = JSON.parse(readFileSync(join(LOCKD, W.addr + '.json'), 'utf8')); if (o.dir !== DIR && Date.now() - (o.at || 0) < 90e3) return o.dir || '?'; } catch {} } return ''; }
+function lockBeat() { try { mkdirSync(LOCKD, { recursive: true }); const other = otherEngine(); if (!other) for (const W of WALLETS) writeFileSync(join(LOCKD, W.addr + '.json'), JSON.stringify({ dir: DIR, pid: process.pid, at: Date.now() }));
+    const cf = join(DIR, 'data', 'conflict.json'); if (other) { writeFileSync(cf, JSON.stringify({ dir: other, at: Date.now() })); if (CONFL !== other) { CONFL = other; log('⚠️ 同一个钱包已经有另一个罗宾猫雷达在跑（' + other + '），这个先停买'); tgSay('⚠️ 你的电脑同时开了两个罗宾猫雷达，而且用同一个钱包（另一个在：' + other + '）。为了不重复下单，这个已经自动停买。请关掉旧的那个。').catch(() => {}); } } else { CONFL = ''; if (existsSync(cf)) unlinkSync(cf); } } catch {} }
+setTimeout(lockBeat, 3000); setInterval(lockBeat, 30e3);
+const LOCKED = () => !!CONFL || existsSync(join(DIR, 'radar', 'main.cjs')) && !existsSync(join(DIR, '.sign')) && !bindJoinOk(); /* 开源版：没完成邀请绑定 → 雷达手动单、TG 买卖指令全部挡掉 */
+let RMT = { at: 0, kill: false }; const remoteKill = () => { if (Date.now() - RMT.at > 30e3) { RMT.at = Date.now(); try { const J = JSON.parse(readFileSync(join(DIR, 'data', 'remote.json'), 'utf8')); RMT.kill = J?.kill?.buy === false; } catch { RMT.kill = false; } } return RMT.kill; }; /* 远端紧急停买（官方签名过、雷达核对后才写进 data/remote.json） */
+/* 她 11/2 按键：只在特定时段自动打；连亏几笔自动暂停 */
+const hoursBlock = () => { const z = radarSet(); if (+z['risk.hoursOn'] !== 1) return false; const f = Math.max(0, Math.min(23, +z['risk.hourFrom'] || 0)), t = Math.max(1, Math.min(24, +z['risk.hourTo'] || 24)); const h = new Date().getHours(); return f < t ? !(h >= f && h < t) : !(h >= f || h < t); };
+setInterval(() => { try { const n = Math.floor(+radarSet()['risk.lossStreak'] || 0); if (!(n > 0) || existsSync(join(DIR, 'data', 'pause_buy.txt'))) return; const since = +S.streakAt || 0; const sells = readFileSync(join(DIR, 'data', 'journal.jsonl'), 'utf8').split('\n').slice(-500).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && x.side === '卖' && !x.old && +x.cp > 0 && x.usd != null && (x.at || 0) > since && !(x.manual && Number(radarSet()['risk.lossManual']) !== 1)); /* 11/2 22:40：同上，连亏暂停以前也永远不会触发 */
+  const last = sells.slice(-n); if (last.length < n || !last.every((x) => (+x.usd || 0) < +x.cp)) return; S.streakAt = Date.now(); save(); writeFileSync(join(DIR, 'data', 'pause_buy.txt'), String(Date.now())); log(`连续亏了 ${n} 笔，自动暂停买入`); tgSay(`⏸ 连续亏了 ${n} 笔，已自动暂停买入（卖出照常）。看过没问题再到雷达按「▶ 恢复」，或在 TG 打「恢复」`).catch(() => {}); } catch {} }, 60e3);
+/* 她 11/2：🎁 空投与每日任务 — 用户在雷达记的「每天要做」的任务，晚上 8 点还没打勾就在 TG 提醒一次 */
+setInterval(() => { try { const d = new Date(); if (d.getHours() !== 20) return; const day = d.toDateString(); if (S.taskRemind === day) return; const T = (radarSet().tasks || []).filter((x) => x && x.daily && x.done !== new Date(Date.now() - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 10)); S.taskRemind = day; save(); if (!T.length) return; tgSay('🎁 今天还没做的每日任务：\n' + T.slice(0, 15).map((x) => '☐ ' + String(x.name).slice(0, 40)).join('\n') + '\n做完到雷达「🎁 空投」页打勾').catch(() => {}); } catch {} }, 5 * 60e3);
+const radarOff = () => LOCKED() || hoursBlock() || remoteKill() || !!CONFL || /* 11/2 22:25：没完成邀请码绑定，所有自动策略也一律不动 */ existsSync(join(DIR, 'data', 'pause_buy.txt')) || radarSet().auto === false || (!radarSet().setupDone && existsSync(join(DIR, 'radar', 'main.cjs'))) || (existsSync(join(DIR, 'radar', 'main.cjs')) && !existsSync(join(DIR, '.sign')) && !bindJoinOk()); /* 11/2：要有邀请码才会自动买（没有就只看盘） */ /* 有装罗宾猫雷达的：第一次打开还没选打法（setupDone）之前不自动买；只用 /update 更新单档的旧用户不受影响 */ /* 暂停／关掉自动打：只停自动买，卖出照常 */
 const SELF_FILE = fileURLToPath(import.meta.url);
 const ORD_SEEN = new Set(); let LK_SEQ = 0; /* 只保留最新一次搜寻的结果 */
 async function radarOrders() {
@@ -1358,6 +1379,17 @@ async function radarOrders() {
   let arr = []; try { arr = JSON.parse(readFileSync(tmp, 'utf8')) || []; } catch {} try { unlinkSync(tmp); } catch {}
   for (const o of arr.slice(0, 10)) {
     if (o.id) { if (ORD_SEEN.has(o.id)) continue; ORD_SEEN.add(o.id); if (ORD_SEEN.size > 500) ORD_SEEN.delete(ORD_SEEN.values().next().value); } /* 反向抓错 11/2：雷达写单和引擎取单同时发生时，旧单会被写回去 → 用编号去重，绝不重复下单 */
+    if (o.type === 'update') { const m = await doUpdate().catch((e) => '⚠️ 更新出错：' + String(e.message || e).slice(0, 100)); try { writeFileSync(join(DIR, 'data', 'update_result.json'), JSON.stringify({ at: Date.now(), msg: m })); } catch {} log(m); await tgSay('🔄 ' + m).catch(() => {}); continue; }
+    if (o.type === 'health') { (async () => { /* 她 11/2：🩺 钱包健检 — 余额够不够付手续费、有没有给不认识的合约授权、持仓有没有归零的 */ const out = { at: Date.now(), w: [] };
+        for (const W of WALLETS) { const it = { name: W.name, addr: W.addr, warn: [], ok: [] };
+          try { it.bnb = Number(big(await rpc('eth_getBalance', [W.addr, 'latest']))) / 1e18; it.bnb < 0.003 ? it.warn.push(`BNB 只剩 ${it.bnb.toFixed(4)}，可能付不起手续费（建议放 0.005 以上）`) : it.ok.push(`BNB ${it.bnb.toFixed(4)}，手续费够用`); } catch {}
+          try { it.usdt = Number(await usdtFree(W)) / 1e18; } catch {}
+          try { if (RH?.ethBal) { it.eth = await RH.ethBal(W.addr); if (it.eth != null) (it.eth < 0.0005 ? it.warn.push(`Robinhood 上 ETH 只剩 ${it.eth.toFixed(5)}，打 Robinhood 不够付手续费`) : it.ok.push(`Robinhood ETH ${it.eth.toFixed(5)}`)); } } catch {}
+          try { const r = await W.baw(['approvals', 'list', '--limit', '100']); if (r.j?.success) { const L = r.j?.data?.list || []; const unk = L.filter((x) => !/pancake|binance|1inch|okx|uniswap|permit2|router|aggregator|kyber|paraswap|0x ?protocol/i.test(String(x.spenderName || x.spenderLabel || ''))); it.appr = L.length; it.unk = unk.slice(0, 10).map((x) => ({ tok: x.tokenSymbol || String(x.tokenContract || '').slice(0, 10), sp: String(x.spenderName || x.spenderLabel || x.spender || '').slice(0, 42), amt: String(x.amount ?? x.allowance ?? '').slice(0, 24) })); unk.length ? it.warn.push(`有 ${unk.length} 笔授权给不认识的合约（不是你给的话，到 revoke.cash 取消）`) : it.ok.push(`授权 ${L.length} 笔，都是认识的交易合约`); } else it.warn.push('读不到授权清单（钱包连线可能断了，到「设定 → 钱包」重新连接）'); } catch {}
+          it.score = Math.max(0, 100 - it.warn.length * 25); out.w.push(it); }
+        try { writeFileSync(join(DIR, 'data', 'health.json'), JSON.stringify(out)); } catch {} })().catch(() => {}); continue; }
+    if (['buy', 'mint', 'nftmint'].includes(o.type) && remoteKill()) { await tgSay('🛑 官方暂时停止所有买入（避开风险中），这笔没有执行；卖出照常').catch(() => {}); continue; }
+    if (!['addWallet', 'removeWallet', 'analyze', 'mintHist'].includes(o.type) && LOCKED()) { log('🔒 还没完成邀请绑定，雷达下单被挡：' + o.type); await tgSay('🔒 还没完成邀请码绑定：现在只能看，不能买卖。请在雷达填邀请码、完成绑定').catch(() => {}); continue; } /* 她 11/2 19:57：没邀请码一律挡掉 */
     if (o.type === 'addWallet' || o.type === 'removeWallet') { const f = join(DIR, 'data', 'radar_wallets_cfg.json'); const cfg = { add: [], hidden: [], ...WCFG }; const a = String(o.address || '').toLowerCase();
       if (!/^0x[0-9a-f]{40}$/.test(a)) continue;
       if (o.type === 'addWallet') { cfg.hidden = (cfg.hidden || []).filter((x) => x !== a); if (!WALLETS.some((w) => w.addr === a) && !cfg.add.some((w) => w.address.toLowerCase() === a)) { const id = 'w' + Date.now().toString(36); cfg.add.push({ name: String(o.name || 'wallet').replace(/[^\w.\-\u4e00-\u9fff]/g, '').slice(0, 30) || 'wallet', address: a, bawDir: 'baw_' + id, instanceId: 'radar-' + id }); } }
@@ -1385,6 +1417,8 @@ async function radarOrders() {
       out.found.sort((a, b) => (b.self - a.self) || ((b.kind === 'mint') - (a.kind === 'mint')));
       W_(out); log(`雷达搜寻 ${q}：${out.found.length} 个合约`); })().catch((e) => log('雷达搜寻出错 ' + e.message)); continue; }
     const c = String(o.c || '').toLowerCase(); if (!/^0x[0-9a-f]{40}$/.test(c) || Date.now() - (o.at || 0) > 5 * 60e3) continue; /* 超过 5 分钟的旧单不执行 */
+    if (o.type === 'shareInfo') { shareInfo(c).catch((e) => log('份数资讯 ' + e.message)); continue; } /* 她 11/2 23:44：按份数铸造 */
+    if (o.type === 'shareMint') { (async () => { const r = await shareMint(c, o.n, o.w).catch((e) => '❌ ' + e.message); log('雷达按份数铸造 ' + c + ' ' + r.replace(/\n/g, ' ')); await tgSay('🖥 雷达铸造 ' + (o.name || c.slice(0, 8)) + '：\n' + r).catch(() => {}); try { writeFileSync(join(DIR, 'data', 'share_last.json'), JSON.stringify({ c, at: Date.now(), r })); } catch {} })(); continue; }
     if (o.type === 'track') { S.paid = S.paid || {}; if (!S.paid[c]) { S.paid[c] = { at: Date.now(), name: String(o.name || '').slice(0, 40) || '搜寻项目', done: {}, fromUrl: 'search', needLearn: 1 }; save(); log(`雷达搜寻：${c} 加入追踪（照一般规则）`); } continue; }
     if (o.type === 'analyze' || o.type === 'mintHist') { (async () => { const isRh = Number(o.chain) === 4663; let r;
         try { if (o.type === 'analyze') r = isRh ? (RH ? await RH.analyze(c, null, true) : { ok: false, why: 'Robinhood 模组没载入' }) : (BA ? await Promise.race([BA.analyze(c, o.pool), new Promise((ok) => setTimeout(() => ok({ ok: false, why: '查超过 40 秒（交易太多），稍后再试' }), 40e3))]) : { ok: false, why: '模组没载入' });
@@ -1392,9 +1426,9 @@ async function radarOrders() {
         const f = r?.facts ? { bundlePct: r.facts.bundlePct, top10: r.facts.top10, realBuyers: r.facts.realBuyers, devPct: r.facts.devPct ?? null } : null;
         writeFileSync(join(DIR, 'data', o.type === 'analyze' ? 'radar_analyze.json' : 'radar_minthist.json'), JSON.stringify({ c, at: Date.now(), chain: isRh ? 4663 : 56, ok: r?.ok !== false, why: r?.why || '', facts: f, pts: r?.pts || null, nft: r?.nft || false })); })().catch(() => {}); continue; } /* 详情页用：深度检查、铸造走势（只读） */
     if (o.type === 'nftmint' && BN) { await tgSay('🖥 雷达手动铸造 BSC NFT ' + (o.name || c) + '：预演中…').catch(() => {}); const r = await BN.manualMint(c, o.usd).catch((e) => '⚠️ ' + e.message); log('雷达手动铸造 BSC NFT ' + (o.name || c) + '：' + r); continue; }
-    if (o.chain && Number(o.chain) !== 56) { if (Number(o.chain) === 4663 && o.type === 'previewMint' && RH) { const r = await RH.previewMint(c).catch((e) => ({ err: e.message })); writeFileSync(join(DIR, 'data', 'rh_preview.json'), JSON.stringify(r, null, 1)); continue; } if (Number(o.chain) === 4663 && o.type === 'mint' && RH) { await tgSay('🖥 雷达手动铸造 Robinhood ' + (o.name || c) + '：预演中…').catch(() => {}); const r = await RH.manualMint(c, o.usd).catch((e) => '⚠️ ' + e.message); log('雷达手动铸造 Robinhood ' + (o.name || c) + '：' + r); continue; } if (Number(o.chain) === 4663 && o.type === 'sell' && RH) { const r = await RH.manualSell(c, o.pct, o.w).catch((e) => '⚠️ ' + e.message); log('雷达手动卖 Robinhood ' + (o.name || c) + '：' + r); await tgSay('🖥 Robinhood 卖 ' + (Number(o.pct) || 100) + '% ' + (o.name || c) + '\n' + r).catch(() => {}); continue; } if (Number(o.chain) === 4663 && o.type === 'buy' && RH) { await tgSay('🖥 雷达手动买 Robinhood ' + (o.name || c) + '：检查中…').catch(() => {}); const r = await RH.manualBuy(c, Number(o.usd) || 0).catch((e) => '⚠️ ' + e.message); log('雷达手动买 Robinhood ' + (o.name || c) + '：' + r); await tgSay('🖥 Robinhood ' + (o.name || c) + '\n' + r).catch(() => {}); } continue; } /* 别条链的合约绝不拿到 BSC 买 */
+    if (o.chain && Number(o.chain) !== 56) { if (Number(o.chain) === 4663 && o.type === 'previewMint' && RH) { const r = await RH.previewMint(c).catch((e) => ({ err: e.message })); writeFileSync(join(DIR, 'data', 'rh_preview.json'), JSON.stringify(r, null, 1)); continue; } if (Number(o.chain) === 4663 && o.type === 'mint' && RH) { await tgSay('🖥 雷达手动铸造 Robinhood ' + (o.name || c) + '：预演中…').catch(() => {}); const r = await RH.manualMint(c, o.usd).catch((e) => '⚠️ ' + e.message); log('雷达手动铸造 Robinhood ' + (o.name || c) + '：' + r); continue; } if (Number(o.chain) === 4663 && o.type === 'sell' && RH) { const r = await RH.manualSell(c, o.pct, o.w).catch((e) => '⚠️ ' + e.message); log('雷达手动卖 Robinhood ' + (o.name || c) + '：' + r); await tgSay('🖥 Robinhood 卖 ' + (Number(o.pct) || 100) + '% ' + (o.name || c) + '\n' + r).catch(() => {}); continue; } if (Number(o.chain) === 4663 && o.type === 'buy' && RH) { await tgSay('🖥 雷达手动买 Robinhood ' + (o.name || c) + '：检查中…').catch(() => {}); const r = await RH.manualBuy(c, Number(o.eth) > 0 ? Number(o.eth) * (await RH.ethUsd().catch(() => 0)) : (Number(o.usd) || 0), { usdg: o.pay === 'USDG', w: o.w }) /* 11/2：一键买可设「0.005 ETH」；只用选的钱包 */.catch((e) => '⚠️ ' + e.message); log('雷达手动买 Robinhood ' + (o.name || c) + '：' + r); await tgSay('🖥 Robinhood ' + (o.name || c) + '\n' + r).catch(() => {}); } continue; } /* 别条链的合约绝不拿到 BSC 买 */
     if (o.type === 'mint') { if (!S.paid?.[c] && o.src === 'search') { S.paid = S.paid || {}; S.paid[c] = { at: Date.now(), name: String(o.name || '搜寻项目').slice(0, 40), done: {}, fromUrl: 'search', needLearn: 1 }; } if (!S.paid?.[c]) { await tgSay(`🖥 雷达强制打 ${o.name || c}：工具里没有这个铸造项目，没执行`).catch(() => {}); continue; } if (S.forceDone) delete S.forceDone[c]; FORCE.add(c); S.forceAdd = [...new Set([...(S.forceAdd || []), c])]; if (Number(o.usd) > 0) { S.forceUsd = S.forceUsd || {}; S.forceUsd[c] = Number(o.usd); } save(); log(`雷达强制打 ${o.name || c}：加入指定要打名单`); await tgSay(`🖥 雷达强制打 ${o.name || c}：马上执行（这次最多付 ${capOf(c)}U；跳过防钓鱼门槛，只查会不会被盗）`).catch(() => {}); if (S.paid?.[c]) delete S.paid[c].unmintable; paidLoop('one', c).catch((e) => log('强制打 ' + e.message)); continue; } /* 她 11/2 02:48：强制打常常是快没了，不能等下一轮 */
-    if (o.type === 'buy') { const r = await tgBuy(c, Number(o.usd) || 10, { pay: o.pay, w: o.w }).catch((e) => '⚠️ 下单出错：' + e.message); log(`雷达手动买 ${o.name || c}：${r}`); await tgSay(`🖥 雷达手动买 ${o.name || c}\n${r}`).catch(() => {}); }
+    if (o.type === 'buy') { const r = await tgBuy(c, Number(o.usd) || 10, { pay: o.pay, w: o.w, bnb: o.bnb, name: o.name }).catch((e) => '⚠️ 下单出错：' + e.message); log(`雷达手动买 ${o.name || c}：${r}`); await tgSay(`🖥 雷达手动买 ${o.name || c}\n${r}`).catch(() => {}); }
     else if (o.type === 'sell') { let any = false, gone = 0; for (const t of (S.dyn || []).filter((x) => x.addr === c && !x.closed && (!o.w || x.only === String(o.w).toLowerCase()))) { const W = t.only ? WALLETS.find((w) => w.addr === t.only) : WALLETS[0]; if (!W) { await tgSay(`🖥 ${t.sym}：买它的钱包已经从雷达删除，雷达没办法帮它卖，请到那个钱包自己卖`).catch(() => {}); continue; } const rawB = await call(c, '0x70a08231' + wa(W.addr)).catch(() => null); if (!rawB || rawB === '0x') { await tgSay(`🖥 ${t.sym}：读不到 [${W.name}] 的余额（节点没回应），等一下再按一次卖`).catch(() => {}); any = true; continue; } const bal = big(rawB); if (bal <= 0n) { t.closed = Date.now(); t.closedBy = 'empty'; gone++; await tgSay(`🖥 ${t.sym}：[${W.name}] 里已经没有这个币了（之前就卖光了），已从持仓拿掉`).catch(() => {}); continue; } any = true; const amt = (bal * BigInt(Math.min(100, Math.max(1, Number(o.pct) || 100)))) / 100n; const k = Object.keys(S.tokens || {}).find((x) => x === t.sym || x.endsWith(':' + t.sym)); globalThis.LAST_SELL_ERR = ''; const ok = CURVES[c] ? await curveSell(c, W, amt).catch((e) => (log('曲线卖出错 ' + e.message), false)) : await sell(t, S.tokens?.[k] || {}, amt, '指示：雷达手动卖', W).catch((e) => (log('雷达卖出错 ' + e.message), false)); if (ok && Number(o.pct || 100) >= 100) { t.closed = Date.now(); t.closedBy = 'sold'; } /* 她 11/2 15:20：全卖成功就马上从持仓拿掉，不用等 10 分钟清理 */ let dead = false; if (!ok && /liquidity/i.test(globalThis.LAST_SELL_ERR || '')) { t.closed = Date.now(); t.closedBy = 'noliq'; dead = true; } /* 她 11/2 04:41：卖不掉的死币也从列表拿掉 */ log(`雷达手动卖 ${t.sym} ${Number(o.pct) || 100}%：${ok ? '成功' : '没卖成'}`); await tgSay(`🖥 雷达手动卖 ${t.sym} ${Number(o.pct) || 100}%（[${W.name}]）：${ok ? '✅ 已送出' : '❌ 没卖成：' + sellWhy(globalThis.LAST_SELL_ERR) + (dead ? '。已从持仓列表拿掉（币还在你钱包里）' : '')}`).catch(() => {}); } if (!any) { save(); await tgSay(`🖥 雷达：${o.name || c} 钱包里已经没有了（之前就卖光了），已从持仓面板移除`).catch(() => {}); } }
   }
 }
@@ -1430,7 +1464,11 @@ globalThis.CUSTOM_SKIP = (info) => { const rules = Array.isArray(radarSet().rule
     if (hit) return `${r.field} ${r.op} ${r.value}${r.note ? '（' + String(r.note).slice(0, 40) + '）' : ''}`; } catch {} } return ''; };
 /* 罗宾猫雷达 11/2：钱包连接（真的，不是示意）：雷达写 data/radar_login_req.json → 这里跑币安钱包登入，二维码网址写到 data/radar_login.json 给雷达显示 */
 let _loginBusy = false;
-async function radarWalletPoll(force) { try { const out = []; for (const W of WALLETS) { const r = await W.baw(['wallet', 'status'], 60000); out.push({ name: W.name, addr: W.addr, status: r.j?.data?.status || 'UNKNOWN' }); } writeFileSync(join(DIR, 'data', 'radar_wallets.json'), JSON.stringify({ at: Date.now(), list: out })); } catch (e) { log('radarWalletPoll ' + e.message); } }
+/* 她 11/2 23:41：新增／登出钱包要马上反应 → 每分钟查一次登入状态；登出的钱包所有买卖、铸造都先跳过（不会一直失败、乱发通知），重新连接就自动恢复 */
+function guardBaw(W) { if (W._g) return; W._g = 1; const o = W.baw; W.baw = (a, ...r) => (W.off && ['market-order', 'contract-call'].includes(a?.[0]) ? Promise.resolve({ t: 'wallet logged out', j: { success: false, error: { message: `${W.name} 钱包登入过期，先跳过（到雷达「设定 → 钱包」重新连接）` } } }) : o(a, ...r)); }
+for (const W of WALLETS) guardBaw(W);
+try { for (const W of WALLETS) W.off = !!(S.wOff || {})[W.addr]; } catch {} /* 重开后先沿用上次的登入状态 */
+async function radarWalletPoll(force) { try { const out = []; for (const W of WALLETS) { guardBaw(W); const r = await W.baw(['wallet', 'status'], 60000); const st = r.j?.data?.status || 'UNKNOWN'; if (st !== 'UNKNOWN') { const off = st !== 'CONNECTED'; W.off = off; S.wOff = S.wOff || {}; const seen = W.addr in S.wOff; if (!seen) { S.wOff[W.addr] = off; save(); } /* 第一次看到只记下来，不通知 */ else if (off !== !!S.wOff[W.addr]) { S.wOff[W.addr] = off; save(); /* 她 11/2 23:50：以前引擎每次重开都会再通知一次 → 记在状态档，只在真的变化时通知一次 */ log(`[钱包] ${W.name} ${off ? '登出了，自动买卖先跳过这个钱包' : '重新连上了，恢复正常'}`); tgSay(off ? `🔑 ${W.name} 钱包登出了：自动买卖、铸造先跳过这个钱包。到雷达「设定 → 钱包」重新连接就会自动恢复` : `✅ ${W.name} 钱包重新连上了，恢复自动买卖`).catch(() => {}); } } out.push({ name: W.name, addr: W.addr, status: st }); } writeFileSync(join(DIR, 'data', 'radar_wallets.json'), JSON.stringify({ at: Date.now(), list: out })); } catch (e) { log('radarWalletPoll ' + e.message); } }
 setInterval(async () => { const q = join(DIR, 'data', 'radar_login_req.json'); if (_loginBusy || !existsSync(q)) return; let req = {}; try { req = JSON.parse(readFileSync(q, 'utf8')); } catch {} try { unlinkSync(q); } catch {} if (Date.now() - (req.at || 0) > 120e3) return;
   const W = WALLETS[Math.max(0, Math.min(WALLETS.length - 1, Number(req.i) || 0))]; const out = join(DIR, 'data', 'radar_login.json'); _loginBusy = true;
   try { writeFileSync(out, JSON.stringify({ state: 'wait', wallet: W.name, at: Date.now() }));
@@ -1445,34 +1483,146 @@ async function radarBalPoll() { try { const bp = await bnbUsd().catch(() => 0); 
   for (const W of WALLETS) { const b = { name: W.name, addr: W.addr, bsc: {}, rh: {} }; { const rd = async (fn) => { for (let i = 0; i < 3; i++) { const h = await fn().catch(() => null); if (h && /^0x[0-9a-f]+$/i.test(h)) return Number(big(h)) / 1e18; } return null; }; /* 她 11/2 05:16：节点没回应不能当成 0（走势图会掉一根） */ b.bsc.BNB = await rd(() => rpc('eth_getBalance', [W.addr, 'latest'])); for (const k of ['USDT', 'USDC']) b.bsc[k] = await rd(() => call(PAY_TOK[k], '0x70a08231' + wa(W.addr))); } if (RH?.ethBal) b.rh.ETH = await RH.ethBal(W.addr).catch(() => null); w.push(b); }
   S.curveVal = S.curveVal || {}; for (const t of (S.dyn || []).filter((x) => !x.closed && CURVES[x.addr])) { try { const W = WALLETS.find((x) => x.addr === t.only); if (!W) continue; const bal = big(await call(t.addr, '0x70a08231' + wa(W.addr))); S.curveVal[t.addr + ':' + t.only] = bal > 0n ? (Number(await curveQuote(t.addr, W, bal)) / 1e18) * bp : 0; } catch {} } /* 曲线上的币：用曲线报价算现值 */
   writeFileSync(join(DIR, 'data', 'radar_bal.json'), JSON.stringify({ at: Date.now(), bnbUsd: bp, ethUsd: ep, w, caps: { bscMint: PAID.maxUsd, bscTok: AGTOK.usd, rh: RH?.RHC?.usd ?? null, rhMint: RH?.RHC?.mintUsd ?? null, gasBnb: PAID.keepBnb } })); /* 每笔金额：给「钱包总览」算还够打几笔 */
-  if (RH?.RHC && !radarOff() && ((RH.RHC.usd > 0) || RH.RHC.mintAuto) && ep > 0) { const low = w.filter((b) => b.rh.ETH != null && b.rh.ETH * ep < Math.max(RH.RHC.usd || 0, RH.RHC.mintUsd || 0) + 1); S.rhLowAt = S.rhLowAt || 0;
+  if (RH?.RHC && !radarOff() && (RH.RHC.auto === 1 || RH.RHC.mintAuto === 1) && ep > 0) { const low = w.filter((b) => b.rh.ETH != null && b.rh.ETH * ep < Math.max(RH.RHC.usd || 0, RH.RHC.mintUsd || 0) + 1); S.rhLowAt = S.rhLowAt || 0;
     if (low.length && Date.now() - S.rhLowAt > 12 * 3600e3) { S.rhLowAt = Date.now(); save(); tgSay(`⚠️ Robinhood 自动打是开着的，但这些钱包在 Robinhood 链上的 ETH 不够打一笔：\n${low.map((b) => `[${b.name}] ${b.rh.ETH.toFixed(5)} ETH（约 ${(b.rh.ETH * ep).toFixed(1)}U）`).join('\n')}\n雷达没办法帮你跨链。👉 请叫你的 AI 把 BNB 跨链换成 Robinhood 链（4663）上的 ETH，或到「设定」关掉 Robinhood 自动打。`).catch(() => {}); } } } catch (e) { log('radarBalPoll ' + e.message); } }
 setInterval(radarBalPoll, 60e3).unref(); setTimeout(radarBalPoll, 8e3); /* 雷达下单视窗显示每个钱包的余额，不够就提醒 */
-setInterval(() => radarWalletPoll(), 300e3).unref(); setTimeout(() => radarWalletPoll(), 20e3);
+setInterval(() => radarWalletPoll(), 60e3).unref(); setTimeout(() => radarWalletPoll(), 8e3);
 for (const c of S.forceAdd || []) FORCE.add(c); /* 雷达按的「强制打」重开后还在 */
 let RH = null; try { const { startRH } = await import('./rh.mjs?v=' + Date.now()); RH = startRH({ WALLETS, log, tg, S, save, radarOff }); globalThis.RH_APPLY = RH.apply; RADAR.at = 0; radarSet(); } catch (e) { log('Robinhood 模組載入失敗 ' + e.message); } /* 11/2：Robinhood Chain 自動打 */
 let BA = null; try { const { makeBscAnalyze } = await import('./bscanal.mjs?v=' + Date.now()); BA = makeBscAnalyze({ rpc, rpcBatch, log }); } catch (e) { log('BSC 深度检查模组载入失败 ' + e.message); } /* 11/2 她：BSC 也要捆绑检查 */
 let BN = null; try { const { startBscNft } = await import('./bscnft.mjs?v=' + Date.now()); BN = startBscNft({ rpc, rpcBatch, WALLETS, log, tg, S, save, radarOff, radarSet, previewExec, bnbUsd }); } catch (e) { log('BSC NFT 载入失败 ' + e.message); } /* 11/2：BSC NFT 铸造 */
 try { const { startSmart } = await import('./smart.mjs?v=' + Date.now()); startSmart({ rpc, log, tg, S, save, radarSet }); } catch (e) { log('聪明钱包载入失败 ' + e.message); } /* 11/2：聪明钱包监控，本地跑 */
+try { const { startSmartFind } = await import('./smartfind.mjs?v=' + Date.now()); startSmartFind({ DIR, rpc, log }); } catch (e) { log('找聪明钱载入失败 ' + e.message); } /* 她 11/2 22:49 */
+try { const { startAir } = await import('./air.mjs?v=' + Date.now()); startAir({ DIR, WALLETS, rpc, log, tgSay, radarSet }); } catch (e) { log('空投页载入失败 ' + e.message); } /* 她 11/2 23:00 */
 try { const { startJournal } = await import('./journal.mjs?v=' + Date.now()); startJournal({ DIR, S, save, WALLETS, log, tg }); } catch (e) { log('交易日记载入失败 ' + e.message); } /* 11/2：交易日记，全部本地跑 */
 try { const { startPlugins } = await import('./plugins.mjs?v=' + Date.now()); await startPlugins({ DIR, WALLETS, log, tg, S, save, radarOff, radarSet, rpc, walletBusy: () => INFLIGHT > 0, keepBnb: PAID.keepBnb }); } catch (e) { log('外挂载入器失败 ' + e.message); } /* 11/2：量化外挂（网格、定投…），要在雷达按允许才载入 */
-async function tgBuy(ca, usd, opt = {}) { /* TG 指令「/打 合約 10U」：用第一個錢包透過幣安錢包買（曲線盤、已上池子都一樣） */
+async function tgBuy(ca, usd, opt = {}) { if (LOCKED()) return '🔒 还没完成邀请码绑定：现在只能看，不能买卖'; if (remoteKill()) return '🛑 官方暂时停止所有买入（避开风险中），卖出照常'; /* TG 指令「/打 合約 10U」：用第一個錢包透過幣安錢包買（曲線盤、已上池子都一樣） */
   ca = ca.toLowerCase(); usd = Number(usd) > 0 ? Number(usd) : 10; /* 金额由用户自己决定 */ const price = await bnbUsd().catch(() => 0); if (!(price > 0)) return '讀不到 BNB 價格，稍後再試';
   let hp = null; try { hp = await (await fetch(`https://api.honeypot.is/v2/IsHoneypot?address=${ca}&chainID=56`, { signal: AbortSignal.timeout(15000) })).json(); } catch {} /* 11/2：手動買也先過貔貅／稅率檢查 */
   if (hp?.honeypotResult?.isHoneypot === true) return '❌ 擋下了：模擬賣出失敗，是貔貅（買了賣不掉）';
   const hbt = Number(hp?.simulationResult?.buyTax), hst = Number(hp?.simulationResult?.sellTax);
-  if (hbt > AGTOK.maxTax || hst > AGTOK.maxTax) return `❌ 擋下了：稅太高（買 ${hbt}%／賣 ${hst}%，上限 ${AGTOK.maxTax}%）`;
+  const mxT = Number.isFinite(+opt.maxTax) ? +opt.maxTax : AGTOK.maxTax; if (hbt > mxT || hst > mxT) return `❌ 擋下了：稅太高（買 ${hbt}%／賣 ${hst}%，上限 ${mxT}%）`; /* 11/2 逆向：一般新币自动买用自己的税上限，不跟 AI 热门代币的设定绑在一起 */
   const hpWarn = hp?.simulationSuccess ? `\n🛡 貔貅檢查通過（買稅 ${hbt}%／賣稅 ${hst}%）` : '\n⚠️ 查不到貔貅檢查結果（可能還在曲線盤、沒上池子），照你的指示已買，風險自負';
-  const W = WALLETS.find((x) => x.addr === String(opt.w || '').toLowerCase()) || WALLETS[0]; const pay = PAY_TOK[opt.pay] ? opt.pay : 'BNB'; /* 雷达 11/2：用户自己选钱包和用哪个币付 */
+  const W = WALLETS.find((x) => x.addr === String(opt.w || '').toLowerCase()) || WALLETS[0]; const pay = Number(opt.bnb) > 0 ? 'BNB' : PAY_TOK[opt.pay] ? opt.pay : 'BNB'; if (Number(opt.bnb) > 0) usd = Number(opt.bnb) * price; /* 她 11/2 19:17：一键买可以直接设「0.1 BNB」→ 用 BNB 付这么多，不换算、不换币 */ /* 雷达 11/2：用户自己选钱包和用哪个币付 */
   const bnbHave = Number(big(await rpc('eth_getBalance', [W.addr, 'latest']))) / 1e18; const have = pay === 'BNB' ? bnbHave : pay === 'USDT' ? Number(await usdtFree(W)) / 1e18 : Number(big(await call(PAY_TOK[pay], '0x70a08231' + wa(W.addr)))) / 1e18; /* USDT 扣掉外挂（网格／定投）今天要用的 */
   if (pay !== 'BNB' && bnbHave < 0.0015) return `❌ [${W.name}] BNB 只剩 ${bnbHave.toFixed(4)}，付不起手续费（gas）。用 ${pay} 买也要一点 BNB 当手续费，而且之后卖出也要。\n👉 请叫你的 AI 换约 2U 的 BNB 到这个钱包`; const need = pay === 'BNB' ? usd / price + (PAID.keepBnb || 0.002) : usd; /* BNB 付的话留一点当之后卖出的手续费 */
   if (have < need) return `❌ 余额不够：[${W.name}] 只有 ${have.toFixed(pay === 'BNB' ? 4 : 2)} ${pay}（约 ${(pay === 'BNB' ? have * price : have).toFixed(1)}U），这次要 ${pay === 'BNB' ? (usd / price).toFixed(4) + ' BNB＋手续费' : usd + ' ' + pay}。\n👉 请叫你的 AI 把钱包里的其他币换成 ${pay}，或在雷达改用别的币付`;
-  const sw = await W.baw(['market-order', 'swap', '--binanceChainId', '56', '--fromTokenQty', pay === 'BNB' ? (usd / price).toFixed(6) : usd.toFixed(4), '--fromToken', pay === 'BNB' ? NATIVE_BNB : PAY_TOK[pay], '--toToken', ca, '--slippage', '15']);
-  if (!sw.j?.success) return '❌ 買入失敗：' + String(sw.j?.error?.message || sw.t).slice(0, 100);
-  S.dyn = S.dyn || []; if (!S.dyn.some((x) => x.addr === ca && x.only === W.addr)) S.dyn.push({ sym: ca.slice(0, 8), addr: ca, cost: usd, only: W.addr, boughtAt: Date.now() }); save(); return `✅ [${W.name}] 已用 ${pay} 買入 ${usd}U，加入持倉監控` + hpWarn;
+  /* 她 11/2 20:24 防夹：用币安钱包自己的「自动滑点」＋防夹（MEV 保护）；自动滑点买不进去才用 15% 重试一次。50U 以上拆成 2～3 笔，被夹的损失变小 */
+  /* 她 11/2 21:44 防夹提醒：买之前记下市价和余额，买完算实际成交价，贵太多就提醒可能被夹 */ let sandPx = 0, sandB0 = 0n, sandDec = 18; try { const dx = await (await fetch('https://api.dexscreener.com/latest/dex/tokens/' + ca, { signal: AbortSignal.timeout(8000) })).json(); sandPx = Number((dx?.pairs || []).filter((p) => p.chainId === 'bsc').sort((x, y) => (y.liquidity?.usd || 0) - (x.liquidity?.usd || 0))[0]?.priceUsd) || 0; sandB0 = big(await call(ca, '0x70a08231' + wa(W.addr))); sandDec = Number(big(await call(ca, '0x313ce567'))) || 18; } catch {}
+  const parts = usd >= 150 ? 3 : usd >= 50 ? 2 : 1; let okN = 0, lastErr = '';
+  for (let k = 0; k < parts; k++) { const part = usd / parts; const q = pay === 'BNB' ? (part / price).toFixed(6) : part.toFixed(4);
+    const go = (sl) => W.baw(['market-order', 'swap', '--binanceChainId', '56', '--fromTokenQty', q, '--fromToken', pay === 'BNB' ? NATIVE_BNB : PAY_TOK[pay], '--toToken', ca, '--slippage', sl]);
+    let sw = await go('auto'); if (!sw.j?.success) { log(`[${W.name}] 自动滑点没成交，改 15% 再试一次：` + String(sw.j?.error?.message || sw.t).slice(0, 80)); sw = await go('15'); }
+    if (sw.j?.success) okN++; else { lastErr = String(sw.j?.error?.message || sw.t).slice(0, 100); break; } if (k < parts - 1) await sleep(1500); }
+  if (!okN) return '❌ 買入失敗：' + lastErr; if (okN < parts) usd = usd * okN / parts;
+  let sandWarn = ''; try { if (sandPx > 0) { await sleep(2500); const got = Number(big(await call(ca, '0x70a08231' + wa(W.addr))) - sandB0) / 10 ** sandDec; if (got > 0) { const paid = usd / got, over = (paid / sandPx - 1) * 100 - (Number.isFinite(hbt) ? hbt : 0); if (over >= 8) { sandWarn = `\n⚠️ 这笔成交价比市价贵约 ${over.toFixed(0)}%（扣掉买税后），可能被夹子夹了或池子太小滑点大。下次可以买少一点、分开买，或等池子大一点`; log(`[${W.name}] 防夹提醒 ${ca} 贵 ${over.toFixed(1)}%`); } } } } catch {}
+  S.dyn = S.dyn || []; { const ex = S.dyn.find((x) => x.addr === ca && x.only === W.addr && !x.closed); if (ex) ex.cost = +((+ex.cost || 0) + usd).toFixed(2); /* 11/2 22:10 逆向：同一个币再买一次，成本要加上去，不然盈亏会算错 */ else S.dyn.push({ sym: String(opt.name || '').slice(0, 24) || ca.slice(0, 8), addr: ca, cost: usd, only: W.addr, boughtAt: Date.now(), src: 'manual' }); } /* 11/2：持仓分「一般代币（手动／一键买）」和「AI 专属」 */ save(); return `✅ [${W.name}] 已用 ${pay} 買入 ${+usd.toFixed(2)}U，加入持倉監控` + hpWarn + sandWarn;
 }
+// ── 她 11/2 21:50：BNB Chain「一般新币自动买」（Flap／Four／Genius／V4 新币）。预设关闭，玩家自己在「自订策略 → 一般代币」新增才会动；每条规则都是开关＋数字 ──
+async function genScan() {
+  const z = radarSet(); if (!Number(z['gen.auto']) || radarOff() || LOCKED()) return;
+  const n = (k, d) => { const v = Number(z[k]); return Number.isFinite(v) ? v : d; }; const on = (k, d) => Number(z[k] ?? d) === 1;
+  let J; try { J = JSON.parse(readFileSync(join(DIR, 'data', 'bsc_cand.json'), 'utf8')); } catch { return; } if (Date.now() - (J.at || 0) > 10 * 60e3) return; /* 雷达没开就没有候选 */
+  const now = Date.now(), today = new Date().toDateString(); S.gen = S.gen || {}; if (S.genDay?.d !== today) S.genDay = { d: today, u: 0 };
+  const usd = n('gen.usd', 5), dayUsd = n('gen.dayUsd', 20), maxPos = n('gen.maxPos', 3);
+  const openN = (S.dyn || []).filter((t) => t.src === 'gen' && !t.closed).length; if (maxPos > 0 && openN >= maxPos) return; if (S.genDay.u + usd > dayUsd) return;
+  const held = new Set((S.dyn || []).map((t) => String(t.addr).toLowerCase()));
+  for (const x of (J.list || []).slice(0, 40)) {
+    const c = String(x.c || '').toLowerCase(); if (!/^0x[0-9a-f]{40}$/.test(c) || held.has(c)) continue; const g = S.gen[c]; if (g && (g.final || now - g.at < 10 * 60e3)) continue;
+    const sym = String(x.sym || '').slice(0, 24) || c.slice(0, 8); const ageMin = (now - (x.at || 0)) / 60e3;
+    const no = (why, final) => { S.gen[c] = { at: now, why, final: !!final }; };
+    if (x.curve) { no('还在发射平台曲线上（没毕业），自动买只买已上池子的币'); continue; }
+    { const k = sym.toLowerCase(); S.genSym = S.genSym || {}; const f0 = S.genSym[k]; if (!f0 || now - f0.t > 24 * 3600e3) S.genSym[k] = { c, t: now }; else if (f0.c !== c && Number(z['risk.firstOnly'] ?? 1) !== 0) { no('同名币 24 小时内只买第一个（防抄名钓鱼）', 1); continue; } }
+    if (n('gen.maxAgeMin', 180) > 0 && ageMin > n('gen.maxAgeMin', 180)) { no('开盘太久', 1); continue; }
+    if ((x.liq || 0) < n('gen.minLiqUsd', 15000)) { no('流动性不够'); continue; }
+    if (n('gen.mcMin', 0) > 0 && (x.mc || 0) < n('gen.mcMin', 0)) { no('市值太低'); continue; }
+    if (n('gen.mcMax', 0) > 0 && (x.mc || 0) > n('gen.mcMax', 0)) { no('市值太高'); continue; }
+    if ((x.b || 0) < n('gen.minBuys', 30)) { no('最近 1 小时买单太少'); continue; }
+    if (on('gen.needX', 1) && !x.x) { no('没有官方 X'); continue; }
+    if (on('gen.antiWash', 1) && (x.b || 0) >= 20 && (x.s || 0) <= 1) { no('假热度（只有买没有卖）', 1); continue; }
+    if (on('gen.needSmart', 0) && !(now - (S.smartW?.seen?.['bsc' + c + '买'] || 0) < 6 * 3600e3)) { no('你标记的聪明钱包还没买'); continue; }
+    if (on('gen.needCall', 0) && !S.callHits?.[c]) { no('还没有 KOL 喊单'); continue; }
+    const dep = await deployerOf(c).catch(() => ''); if (dep && (S.black?.[dep] || isRepeatDev(dep))) { no('部署者在黑名单或大量部署', 1); continue; }
+    if (BA) { const A = await Promise.race([BA.analyze(c, '').catch((e) => ({ ok: false, why: e.message })), new Promise((ok) => setTimeout(() => ok({ ok: false, why: '查太久' }), 45e3))]); if (!A?.ok) { no('捆绑检查读不到'); continue; } const F = A.facts || {};
+      if (n('gen.maxBundle', 15) < 100 && F.bundlePct * 100 > n('gen.maxBundle', 15)) { no(`捆绑钱包持有 ${(F.bundlePct * 100).toFixed(0)}%`, 1); continue; }
+      if (n('gen.maxTop10', 30) < 100 && F.top10 * 100 > n('gen.maxTop10', 30)) { no(`前 10 大持有 ${(F.top10 * 100).toFixed(0)}%`); continue; }
+      if (F.realBuyers < n('gen.minReal', 20)) { no(`真实买家只有 ${F.realBuyers} 个`); continue; } }
+    { const cs = globalThis.CUSTOM_SKIP?.({ chain: 'bsc', type: 'general', c, sym, liqUsd: x.liq, mc: x.mc, ageMin, buys1h: x.b, sells1h: x.s }); if (cs) { no('自订规则不打：' + cs, 1); continue; } }
+    { let hp = null; try { hp = await (await fetch(`https://api.honeypot.is/v2/IsHoneypot?address=${c}&chainID=56`, { signal: AbortSignal.timeout(15000) })).json(); } catch {} const bt = Number(hp?.simulationResult?.buyTax), st = Number(hp?.simulationResult?.sellTax); /* 自动买比手动严格：查不到模拟卖出结果就不买 */
+      if (hp?.honeypotResult?.isHoneypot === true) { no('貔貅（模拟卖出失败）', 1); continue; } if (!hp?.simulationSuccess || !(bt >= 0) || !(st >= 0)) { no('查不到貔貅检查结果'); continue; } if (bt > n('gen.maxTax', 10) || st > n('gen.maxTax', 10)) { no(`税太高（买 ${bt}%／卖 ${st}%）`, 1); continue; } }
+    no('已买', 1); save(); /* 先记下来：同一个币不会因为重试买两次 */
+    const r = await tgBuy(c, usd, { name: sym, maxTax: n('gen.maxTax', 10) }).catch((e) => '❌ ' + e.message); /* 跟一键买走同一套：贔貅／税检查、余额、自动滑点＋防夹、拆单、防夹提醒 */
+    if (/^✅/.test(r)) { S.genDay.u += usd; for (const t of S.dyn || []) if (t.addr === c && !t.src2) { t.src = 'gen'; t.src2 = 1; } save(); await tg(`🚀 一般新币自动买：${sym}（${x.plat || ''}）| 市值 $${Math.round(x.mc || 0)} · 流动性 $${Math.round(x.liq || 0)} · 1 小时 ${x.b} 买／${x.s} 卖\n${r}\n${c}`); }
+    else { S.gen[c] = { at: now, why: r.slice(0, 60), final: /贔貅|貔貅|稅太高|税太高/.test(r) }; log(`[一般新币] ${sym} 没买：${r.slice(0, 120)}`); }
+    break; /* 每轮最多买 1 个 */
+  }
+}
+/* ── 她 11/2 23:22：AGC（agcc.fun）每日免费挖（A 模式），预设关。只做「押 0.002 BNB／份、24 小时后全额退回＋拿 AGC」，不做入池挖（B）
+   合约 0x6288…3743：mint(份数, 推荐人) = 0x0db5ae5a，claim(第几笔[]) = 0xc94c7ff4；每一笔送出前都先预演，只准扣说好的 BNB、不准有授权 ── */
+const AGC_C = '0x6288dfe86f22b53eeb6886ae2d78941de7483743', AGC_MINT = '0xa77009a7ae07705c8a16f41d4bebc2634992bda20b797ccf1ec29a333ab6dd06';
+async function agcIndex(W, st) { /* 第一次：往回找这个钱包以前挖过几笔（claim 要用第几笔） */
+  if (st.idxDone) return; const head = parseInt(await rpc('eth_blockNumber', []), 16); let n = 0, empty = 0; const ev = [];
+  for (let to = head; to > 0 && empty < 3; to -= 50000) { const from = Math.max(1, to - 49999); let L = null; try { L = await logsRpc([{ address: AGC_C, topics: [AGC_MINT], fromBlock: '0x' + from.toString(16), toBlock: '0x' + to.toString(16) }]); } catch { L = null; } if (L == null) throw new Error('读不到 AGC 纪录'); if (!L.length) { empty++; continue; } empty = 0; for (const l of L) if (String(l.topics[1] || '').slice(26).toLowerCase() === W.addr.slice(2)) ev.push({ blk: parseInt(l.blockNumber, 16) }); }
+  const bps = 0.45; /* BNB Chain 约 0.45 秒一块，用来估以前每一笔是多久前挖的 */
+  ev.sort((a, b) => a.blk - b.blk); st.mints = ev.map((e, i) => ({ i, at: Date.now() - (head - e.blk) * bps * 1000, old: 1, claimed: 0 })); st.idxDone = 1; save(); /* 以前自己手动挖的：不知道领了没，交给预演判断 */
+}
+async function agcDaily() {
+  const z = radarSet(); if (Number(z['agc.auto']) !== 1 || radarOff()) return; S.agc = S.agc || {}; const day = new Date().toISOString().slice(0, 10); /* 合约 UTC 0 点重置 */
+  const maxN = Math.max(1, Math.min(20, Math.round(+z['agc.maxShares'] || 5)));
+  for (const W of WALLETS) {
+    const st = (S.agc[W.addr] = S.agc[W.addr] || { mints: [], day: '' }); try { await agcIndex(W, st); } catch (e) { log(`[AGC][${W.name}] ${e.message}`); continue; }
+    /* ① 到期的先领回：预演必须「只进不出」 */
+    const due = st.mints.filter((m) => !m.claimed && Date.now() - m.at > 24 * 3600e3 + 10 * 60e3).slice(0, 10);
+    for (const m of due) { const data = '0xc94c7ff4' + w(32) + w(1) + w(m.i);
+      try { await previewExec(W, AGC_C, data, 0n, (sim) => { if (sim?.allowanceChanges?.length || sim?.authorityChanges?.length) return '有授权变化'; const out = (sim?.balanceChanges || []).filter((b) => String(b.owner).toLowerCase() === W.addr && Number(b.change) < 0); return out.length ? '领回时会扣钱' : ''; }, null, { noDrain: true }); m.claimed = Date.now(); save(); await tg(`⛏ [${W.name}] AGC 第 ${m.i + 1} 笔已领回（BNB 退回＋AGC 到帐）`); }
+      catch (e) { if (m.old && Date.now() - m.at > 48 * 3600e3) { m.claimed = -1; save(); } else log(`[AGC][${W.name}] 领第 ${m.i + 1} 笔失败：${String(e.message).slice(0, 100)}`); if (!m.old && Date.now() - m.at > 48 * 3600e3 && !m.warn) { m.warn = 1; save(); await tg(`⚠️ [${W.name}] AGC 第 ${m.i + 1} 笔押了 24 小时以上还领不回来，请到 agcc.fun 自己看看（可能合约被暂停）`); } } }
+    /* ② 今天还没挖：从最多份数往下试，预演通过才送 */
+    if (st.day === day || Date.now() - (st.failAt || 0) < 3 * 3600e3) continue; const bnb = Number(big(await rpc('eth_getBalance', [W.addr, 'latest']))) / 1e18; let ok = 0;
+    for (let n = maxN; n >= 1 && !ok; n--) { const val = 2000000000000000n * BigInt(n); if (bnb < Number(val) / 1e18 + (PAID.keepBnb || 0.002)) continue;
+      const data = '0x0db5ae5a' + w(n) + w(0);
+      try { await previewExec(W, AGC_C, data, val, (sim) => { if (sim?.allowanceChanges?.length || sim?.authorityChanges?.length) return '有授权变化'; const out = (sim?.balanceChanges || []).filter((b) => String(b.owner).toLowerCase() === W.addr && Number(b.change) < 0 && !String(b.contractAddress || '').toLowerCase().startsWith('0xeeee')); return out.length ? '会扣到别的币' : ''; }, null, { noDrain: true });
+        st.mints.push({ i: st.mints.length, at: Date.now(), n, claimed: 0 }); st.day = day; ok = 1; save(); await tg(`⛏ [${W.name}] AGC 今天挖了 ${n} 份（押 ${(Number(val) / 1e18).toFixed(3)} BNB，24 小时后自动领回 BNB＋AGC）`); }
+      catch (e) { if (/結果不明/.test(e.message)) { st.day = day; save(); await tg(`⚠️ [${W.name}] AGC 送出结果不明，今天先不再试，请到 agcc.fun 看看`); break; } } }
+    if (!ok && st.day !== day) { st.failAt = Date.now(); save(); log(`[AGC][${W.name}] 今天挖不了（额度用完、没有 Agent ID 或 BNB 不够），3 小时后再试`); }
+  }
+}
+setInterval(() => { if (!globalThis._agcBusy) { globalThis._agcBusy = 1; agcDaily().catch((e) => log('AGC ' + e.message)).finally(() => { globalThis._agcBusy = 0; }); } }, 30 * 60e3);
+
+/* ── 她 11/2 23:44：按「份数」铸造（Share Mint 这类）：雷达自己看别人成功的铸造交易，算出「每份多少 BNB」，再用模拟试出「每个钱包最多几份」；用户填份数，照份数铸 ── */
+const SHARE_F = join(DIR, 'data', 'share_info.json');
+async function shareLearn(c) {
+  const samples = []; const P = S.paid?.[c];
+  if (P?.replay?.data && BigInt(P.replay.value || 0) > 0n) samples.push({ data: String(P.replay.data), value: BigInt(P.replay.value), from: '' });
+  try { const head = parseInt(await rpc('eth_blockNumber', []), 16); const hs = new Set();
+    for (let to = head, k = 0; to > head - 40000 && hs.size < 40 && k < 8; to -= 5000, k++) { const L = await logsRpc([{ address: c, fromBlock: '0x' + Math.max(1, to - 4999).toString(16), toBlock: '0x' + to.toString(16) }]).catch(() => []); for (const l of (L || []).reverse()) { hs.add(l.transactionHash); if (hs.size >= 40) break; } }
+    const txs = await rpcBatch([...hs].map((h) => ({ method: 'eth_getTransactionByHash', params: [h] })));
+    for (const t of txs || []) { if (!t || String(t.to || '').toLowerCase() !== c) continue; const v = BigInt(t.value || '0x0'); if (v <= 0n) continue; samples.push({ data: String(t.input), value: v, from: String(t.from).toLowerCase() }); } } catch {}
+  if (!samples.length) return { c, ok: 0, why: '还没看到别人付 BNB 成功铸造的交易，算不出每份价格' };
+  const bySel = {}; for (const s of samples) (bySel[s.data.slice(0, 10)] = bySel[s.data.slice(0, 10)] || []).push(s);
+  const [sel, arr] = Object.entries(bySel).sort((a, b) => b[1].length - a[1].length)[0];
+  const words = (d) => (d.slice(10).match(/.{64}/g) || []).map((x) => BigInt('0x' + x));
+  const nW = words(arr[0].data).length; let idx = -1, unit = 0n;
+  for (let i = 0; i < nW && idx < 0; i++) { const ks = arr.map((s) => words(s.data)[i]); if (ks.some((k) => !(k >= 1n && k <= 100000n))) continue; const us = arr.map((s, j) => (s.value % ks[j] === 0n ? s.value / ks[j] : -1n)); if (us.some((u) => u <= 0n)) continue; if (us.every((u) => u === us[0]) && (arr.length > 1 ? new Set(ks.map(String)).size > 1 || ks[0] > 1n : ks[0] >= 1n)) { idx = i; unit = us[0]; } }
+  if (idx < 0) { const vs = arr.map((s) => s.value).sort((a, b) => (a < b ? -1 : 1)); unit = vs[Math.floor(vs.length / 2)]; } /* 没有份数参数：一次就是一份 */
+  return { c, ok: 1, sel, idx, unit: unit.toString(), tpl: arr[0].data, from: arr[0].from, n: arr.length, at: Date.now() };
+}
+function shareData(info, W, n) { let d = info.tpl.slice(10); if (info.from) d = d.split(info.from.slice(2).padStart(64, '0')).join(W.addr.slice(2).padStart(64, '0')); const ws = d.match(/.{64}/g) || []; if (info.idx >= 0) ws[info.idx] = w(n); return info.tpl.slice(0, 10) + ws.join(''); }
+async function shareCap(info, W) { if (info.idx < 0) { /* 大家都只打 1 份时看不出哪个是份数 → 把等于 1 的参数改成 2、付 2 倍试试看 */ const ws = (info.tpl.slice(10).match(/.{64}/g) || []); for (let i = 0; i < ws.length && info.idx < 0; i++) { if (BigInt('0x' + ws[i]) !== 1n) continue; const t = { ...info, idx: i }; try { await rpc('eth_call', [{ from: W.addr, to: info.c, data: shareData(t, W, 2), value: '0x' + (BigInt(info.unit) * 2n).toString(16) }, 'latest']); info.idx = i; } catch {} } if (info.idx < 0) return 1; } let ok = 0; for (const n of [1, 2, 3, 5, 10, 20, 50, 100]) { try { await rpc('eth_call', [{ from: W.addr, to: info.c, data: shareData(info, W, n), value: '0x' + (BigInt(info.unit) * BigInt(n)).toString(16) }, 'latest']); ok = n; } catch { break; } } return ok; }
+async function shareInfo(c) { const info = INFRA.has(c) || ['0x10ed43c718714eb63d5aa57b78b54704e256024e', '0x13f4ea83d0bd40e75c8222255bc855a974568dd4', '0x1b81d678ffb9c0263b24a97847620c99d213eb14'].includes(c) ? { c, ok: 0, why: '这是交易所路由／基础合约，不是铸造合约' } : await shareLearn(c); if (info.ok) { const W = WALLETS.find((x) => !x.off) || WALLETS[0]; info.cap = W ? await shareCap(info, W).catch(() => 0) : 0; const px = await bnbUsd().catch(() => 0); info.unitBnb = Number(BigInt(info.unit)) / 1e18; info.unitUsd = px ? +(info.unitBnb * px).toFixed(2) : 0; const P = S.paid?.[c]; if (P) { info.prog = Math.round((P.progress || 0) * 100); info.ag = P.agents || 0; } }
+  let all = {}; try { all = JSON.parse(readFileSync(SHARE_F, 'utf8')); } catch {} all[c] = info; const ks = Object.keys(all); if (ks.length > 50) for (const k of ks.slice(0, ks.length - 50)) delete all[k]; writeFileSync(SHARE_F, JSON.stringify(all)); return info; }
+async function shareMint(c, n, wAddr) {
+  if (LOCKED()) return '🔒 还没完成邀请码绑定：现在只能看，不能买卖'; if (remoteKill()) return '🛑 官方暂时停止所有买入（避开风险中）';
+  const W = WALLETS.find((x) => x.addr === String(wAddr || '').toLowerCase()) || WALLETS.find((x) => !x.off); if (!W) return '❌ 没有连上的钱包'; if (W.off) return `❌ ${W.name} 钱包登入过期，请先重新连接`;
+  const info = await shareLearn(c); if (!info.ok) return '❌ ' + info.why; n = Math.max(1, Math.min(100, Math.round(+n || 1))); if (info.idx < 0 && n > 1) n = 1;
+  const val = BigInt(info.unit) * BigInt(n); const data = shareData(info, W, n);
+  try { const r = await previewExec(W, c, data, val, (sim) => { if (sim?.allowanceChanges?.length || sim?.authorityChanges?.length) return '有授权变化'; const out = (sim?.balanceChanges || []).filter((b) => String(b.owner).toLowerCase() === W.addr && Number(b.change) < 0 && !String(b.contractAddress || '').toLowerCase().startsWith('0xeeee')); return out.length ? '会扣到别的币' : ''; }, null, { manual: true });
+    const P = (S.paid = S.paid || {})[c] || (S.paid[c] = { at: Date.now(), name: '搜寻项目', done: {}, fromUrl: 'search' }); P.done = P.done || {}; P.done[W.name] = 'minted'; save();
+    return `✅ [${W.name}] 已铸造 ${n} 份（付 ${(Number(val) / 1e18).toFixed(4)} BNB）\n交易 ${r.tx}`; }
+  catch (e) { return '❌ 铸造没送出：' + String(e.message).slice(0, 120); }
+}
+
 async function agTokScan() {
-  if (radarOff() || Number(radarSet()['bsc.tokAuto']) === 0) return; /* 11/2：BSC 热门代币有自己的开关 */
+  if (radarOff() || Number(radarSet()['bsc.tokAuto']) !== 1) return; /* 她 11/2 22:37：新装好所有买入开关预设关，要自己打开 */ /* 11/2：BSC 热门代币有自己的开关 */
   const now = Date.now(); S.agTok = S.agTok || {};
   const mintToks = new Set(Object.values(S.paid || {}).map((P) => P.tok).filter(Boolean)); for (const c of Object.keys(S.paid || {})) mintToks.add(c);
   const held = new Set((S.dyn || []).map((t) => String(t.addr).toLowerCase()));
@@ -1681,7 +1831,7 @@ async function paidLoop(mode = 'all', shard = null) {
     }
     const gate = forced || (progress >= GO_PCT && (P.agents || 0) >= AG_MIN) || crowdGo; /* 使用者 11/1 14:48：進度夠也要很多 Agent ID 錢包在打 */ /* 進度過 50%：之前的防釣魚規矩全部不看（只留貔貅類安全檢查：模擬、授權、資產、Flap） */
     if (gate && !forced) { const cs = globalThis.CUSTOM_SKIP?.({ chain: 'bsc', type: 'mint', c, name: P.name || '', progress, agents: P.agents || 0 }); if (cs) { if (P.customWhy !== cs) { P.customWhy = cs; P.lastReason = '自订规则不打：' + cs; log(`${P.name || c} 自订规则不打：${cs}`); } continue; } }
-    if (gate && !forced && (radarOff() || Number(radarSet()['bsc.mintAuto']) === 0)) { if (!P.pauseLogged) { P.pauseLogged = 1; log(`${P.name || c} 符合条件，但雷达设成暂停／不自动打，所以不打`); } continue; } /* 罗宾猫雷达 11/1 */
+    if (gate && !forced && (radarOff() || Number(radarSet()['bsc.mintAuto']) !== 1)) { if (!P.pauseLogged) { P.pauseLogged = 1; log(`${P.name || c} 符合条件，但雷达设成暂停／不自动打，所以不打`); } continue; } /* 罗宾猫雷达 11/1 */
     if (!forced && !P.goLogged) { P.goLogged = 1; globalThis.xCheck?.(c, P.name).catch(() => {}); ownerHeavy(c, P.name).catch(() => {}); log(`進場 ${c}：${progress >= GO_PCT ? '進度過 ' + Math.round(GO_PCT * 100) + '%' : '讀不到進度、' + AG_MIN + ' 個以上錢包在打'}（累計 ${P.agents || 0} 個代理人、3 分鐘 ${P.burst || 0} 個），進度 ${progress > 0 ? Math.round(progress * 100) + '%' : '讀不到'}`); }
     // 防釣魚：① 同款合約 24 小時內被部署 3 次以上（批量發盤）不打 ② 進度要是很多人打出來的（至少 20 個不同錢包），不是項目方自己刷的
     if (!forced) { const dep0 = P.deployer !== undefined ? P.deployer : await deployerOf(c); P.deployer = dep0; if (dep0 && S.black?.[dep0]) { if (!P.blackLogged) { P.blackLogged = 1; log(`跳過 ${c}：部署者 ${dep0} 在黑名單（${S.black[dep0].why}）`); } continue; } } /* 網友 AI 建議 11/1：黑名單不管門檻有沒有過都要查（以前門檻一過就跳過） */
@@ -1982,19 +2132,43 @@ async function updCheck(quiet = false) {
   if (!UPD.on) return null;
   try {
     const r = await fetch(`https://raw.githubusercontent.com/${UPD.repo}/main/version.json?t=${Date.now()}`, { signal: AbortSignal.timeout(15000) }); if (!r.ok) return null;
-    const v = await r.json(); if (!v.version || !verGt(v.version, UPD.ver)) return null; UPD.latest = v;
+    const v = await r.json(); const UF = join(DIR, 'data', 'update_avail.json'); if (!v.version || !verGt(v.version, UPD.ver)) { try { if (existsSync(UF)) unlinkSync(UF); } catch {} return null; } UPD.latest = v; try { writeFileSync(UF, JSON.stringify({ version: String(v.version).slice(0, 20), cur: UPD.ver, notes: (v.notes || []).slice(0, 12).map((x) => String(x).slice(0, 200)), at: Date.now() })); } catch {} /* 11/2：没设 TG 的人也看得到 → 雷达画面右上角显示「有新版」 */
     if (!quiet && S.updNotified !== v.version) { /* 使用者 11/1 00:47：不要自動更新（怕被罵）——只提醒，用戶自己回 /update 才更新 */
       S.updNotified = v.version; save();
-      const msg = `🔔 Agent ID Sniper 有新版 v${v.version}（你現在是 v${UPD.ver}）\n${(v.notes || []).map((x) => '• ' + x).join('\n')}\n\n要更新：在 TG 回「/update」，或在工具資料夾放一個名為 UPDATE 的空檔案（更新前會自動安檢、備份舊版）。\n不更新也可以照常使用。\n官方群：${UPD.group}`;
+      const msg = `🔔 罗宾猫哨兵有新版 v${v.version}（你现在是 v${UPD.ver}）\n${(v.notes || []).map((x) => '• ' + x).join('\n')}\n\n要更新：在 TG 回「/update」，或在工具資料夾放一個名為 UPDATE 的空檔案（更新前會自動安檢、備份舊版）。\n不更新也可以照常使用。\n官方群：${UPD.group}`;
       log(msg.replace(/\n/g, ' | ')); console.log('\n' + '='.repeat(48) + '\n' + msg + '\n' + '='.repeat(48) + '\n'); await tgSay(msg);
     }
     return v;
   } catch { return null; }
 }
+/* 一键更新（她 11/2 20:00）：下载 GitHub 上「官方签名过的清单」radar/official.json＋official.sig，用内建公钥验签（假的、被改过的一律拒绝），
+   每个档案下载后比对清单里的 sha256；全部下载、校验、语法检查都过了才一次换上（换之前先备份）。都在用户自己电脑，不碰钱包 */
+const OFFI_PUB = 'MCowBQYDK2VwAyEAMWj2tCjS9GNHCqNpx9v3+JOlkEG2yZWLrw1jfg7LhIw=';
+async function doUpdateAll(v) {
+  const RAW = `https://raw.githubusercontent.com/${UPD.repo}/main/`;
+  const get = async (f) => { const r = await fetch(RAW + f.split('/').map(encodeURIComponent).join('/') + '?t=' + Date.now(), { signal: AbortSignal.timeout(60000) }); if (!r.ok) throw new Error(f + ' ' + r.status); return Buffer.from(await r.arrayBuffer()); };
+  let man, sig; try { man = await get('radar/official.json'); sig = Buffer.from((await get('radar/official.sig')).toString('utf8').trim(), 'base64'); } catch { return '⚠️ 下载新版清单失败，等一下再试'; }
+  const { createPublicKey, verify } = await import('node:crypto');
+  try { if (!verify(null, man, createPublicKey({ key: Buffer.from(OFFI_PUB, 'base64'), format: 'der', type: 'spki' }), sig)) return '⛔ 新版签名不对（不是官方发的），为了安全已拒绝更新'; } catch { return '⛔ 新版签名验证失败，已拒绝更新'; }
+  let M; try { M = JSON.parse(man.toString('utf8')); } catch { return '⛔ 新版清单格式不对，已拒绝'; }
+  const want = []; for (const [f, h] of Object.entries(M.files || {})) { if (!/^[\w\-.\/一-龥]+$/.test(f) || f.includes('..') || f.startsWith('/') || f.startsWith('.sign') || f.startsWith('data/')) return '⛔ 新版清单里有异常路径，已拒绝'; let cur = ''; try { cur = createHash('sha256').update(readFileSync(join(DIR, f))).digest('hex'); } catch {} if (cur !== h) want.push([f, h]); }
+  if (!want.length) return `目前已经是最新版`;
+  const got = []; for (const [f, h] of want) { let b; try { b = await get(f); } catch { return `⚠️ 下载 ${f} 失败，等一下再试（还没改动任何档案）`; } if (createHash('sha256').update(b).digest('hex') !== h) return `⚠️ ${f} 校验不符（GitHub 刚更新、快取还没同步），稍后再试（还没改动任何档案）`; got.push([f, b]); }
+  const tmpD = join(DIR, 'data', 'update_tmp'); mkdirSync(tmpD, { recursive: true });
+  for (const [f, b] of got) if (/\.(mjs|cjs|js)$/.test(f)) { const t = join(tmpD, f.replace(/[\/]/g, '_')); writeFileSync(t, b); const bad = await new Promise((res) => execFile(process.execPath, ['--check', t], { windowsHide: true, timeout: 60000 }, (e, o, er) => res(e ? String(er || e.message) : ''))); try { unlinkSync(t); } catch {} if (bad) return `⛔ 新版 ${f} 语法检查没过，已取消（还没改动任何档案）`; }
+  const bkName = 'update_backup_' + new Date().toISOString().slice(0, 16).replace(/[:T-]/g, ''); const bk = join(DIR, 'data', bkName); mkdirSync(bk, { recursive: true });
+  for (const [f] of got) { const src = join(DIR, f); if (existsSync(src)) { mkdirSync(dirname(join(bk, f)), { recursive: true }); copyFileSync(src, join(bk, f)); } }
+  for (const [f, b] of got) { mkdirSync(dirname(join(DIR, f)), { recursive: true }); writeFileSync(join(DIR, f), b); }
+  writeFileSync(join(DIR, 'radar', 'official.json'), man); writeFileSync(join(DIR, 'radar', 'official.sig'), sig.toString('base64'));
+  const shell = got.some(([f]) => /^radar\/[^\/]+\.cjs$/.test(f)), ui = got.some(([f]) => f.startsWith('radar/'));
+  if (shell || ui) writeFileSync(join(DIR, 'data', shell ? 'relaunch.req' : 'reload.req'), String(Date.now()));
+  log(`一键更新：已换上 ${got.length} 个档案（v${v.version}），旧档备份在 data/${bkName}`);
+  return `✅ 已更新到 v${v.version}（${got.length} 个档案，设定都保留）。${shell ? '雷达会自动重开一次。' : ''}引擎会自动重启载入。`;
+}
 async function doUpdate() {
   if (!UPD.on) return '這個版本不自動更新';
   const v = UPD.latest && verGt(UPD.latest.version, UPD.ver) ? UPD.latest : await updCheck(true); if (!v) return `目前已經是最新版 v${UPD.ver}`;
-  if (v.files) return `v${v.version} 是多个档案一起更新的大版本：请在工具资料夹执行 git pull（或叫你的 AI 照 GitHub 说明更新），再重开工具和罗宾猫雷达`; /* 3.0 起有很多档案，单档更新会缺档 */
+  if (v.files) return await doUpdateAll(v); /* 她 11/2 20:00：一键更新 — 多档一起更新，验官方签名 */
   const r = await fetch(`https://raw.githubusercontent.com/${UPD.repo}/main/watch.mjs?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) }).catch(() => null);
   if (!r || !r.ok) return '⚠️ 下載新版失敗，等一下再試';
   const buf = Buffer.from(await r.arrayBuffer()), code = buf.toString('utf8');
@@ -2102,7 +2276,8 @@ async function tgCmdLoop() {
         if (Date.now() / 1000 - m.date > 120) continue; // 太舊的指令不執行
         const txt = m.text.trim().replace(/^\//, '');
         let mm;
-        if ((mm = txt.match(/^(?:賣|卖|sell)\s*(\S+?)\s*(一半|半|half)?$/i)) || (mm = txt.match(/^(\S+?)\s*(?:全出|全賣|全卖)$/i))) {
+        if (LOCKED() && /^(?:\/?(?:打|buy)\s|賣|卖|sell|\S+\s*(?:全出|全賣|全卖|出一半|賣一半|卖一半)$)/i.test(txt)) { await tgSay('🔒 还没完成邀请码绑定：现在只能看，不能买卖'); }
+        else if ((mm = txt.match(/^(?:賣|卖|sell)\s*(\S+?)\s*(一半|半|half)?$/i)) || (mm = txt.match(/^(\S+?)\s*(?:全出|全賣|全卖)$/i))) {
           const half = !!mm[2]; await tgSay(`⚡ 收到，${mm[1]} 所有錢包${half ? '各賣一半' : '全部賣出'}中…`);
           cmdSell(mm[1], half).catch((e) => tgSay('⚠️ 賣出出錯：' + e.message));
         } else if ((mm = txt.match(/^(\S+?)\s*(?:出一半|賣一半|卖一半)$/i))) {
@@ -2110,7 +2285,7 @@ async function tgCmdLoop() {
         } else if (/^(餘額|余额|錢包|钱包|balance)$/i.test(txt)) { cmdBalance().catch(() => {}); }
         else if (/^(持倉|持仓|holdings?)$/i.test(txt)) { holdReport('📦 持倉').catch((e) => tgSay('⚠️ ' + e.message)); }
         else if (/^(暫停|暂停|pause)$/i.test(txt)) { writeFileSync(join(DIR, 'data', 'pause_buy.txt'), String(Date.now())); await tgSay('⏸ 已暂停自动买（卖出照常）。要恢复打「恢复」'); }
-        else if (/^(恢復|恢复|resume)$/i.test(txt)) { try { unlinkSync(join(DIR, 'data', 'pause_buy.txt')); } catch {} await tgSay('▶ 已恢复自动买'); }
+        else if (/^(恢復|恢复|resume)$/i.test(txt)) { try { unlinkSync(join(DIR, 'data', 'pause_buy.txt')); } catch {} try { const sf = join(DIR, 'data', 'radar_settings.json'); const z = JSON.parse(readFileSync(sf, 'utf8')); if (z.auto === false) { z.auto = true; writeFileSync(sf, JSON.stringify(z, null, 1)); RADAR.at = 0; } } catch {} /* 11/2 22:27 冲突：在雷达按「全部暂停」后，TG 打「恢复」以前只清掉保险丝、其实还是暂停 */ await tgSay('▶ 已恢复自动买（照「自订策略」里每个策略的开关）'); }
         else if (/^\/?(?:打|buy)\s+0x[0-9a-fA-F]{40}/i.test(txt)) { const m = txt.match(/(0x[0-9a-fA-F]{40})\s*(\d+(?:\.\d+)?)?/); await tgSay('⚡ 收到，下單中…'); await tgSay(await tgBuy(m[1], m[2] || 10).catch((e) => '⚠️ 下單出錯：' + e.message)); } /* 11/1 22:55：/打 合約 10U */
         else if (/^(戰績|战绩|統計|统计|stats?)$/i.test(txt)) { cmdStats().catch((e) => tgSay('⚠️ ' + e.message)); }
         else if (/^(update|更新)$/i.test(txt)) { if (!UPD.on) await tgSay('這個版本不自動更新'); else { await tgSay('⚡ 收到，下載新版並安檢中…'); await tgSay(await doUpdate().catch((e) => '⚠️ 更新出錯：' + e.message)); } }
@@ -2134,7 +2309,7 @@ async function main() {
     try {
       const head = parseInt(await rpc('eth_blockNumber', []), 16);
       const tS = Date.now(); try { await scanNew(head); } catch (e) { if (Date.now() - (globalThis._scanErrAt || 0) > 600e3) { globalThis._scanErrAt = Date.now(); log('掃描新合約：節點限流，這輪先略過（下一輪會補掃）' + String(e.message || '').slice(0, 60)); } } /* 11/2 自查：節點限流不能讓整輪後面的工作（熱門代幣、開盤偵測、付費檢查…）一起跳過 */ if (Date.now() - tS > 20e3) log(`掃描一輪花了 ${Math.round((Date.now() - tS) / 1000)} 秒`);
-      if (!globalThis._agBusy && Date.now() - (globalThis._agAt || 0) > 60e3) { globalThis._agBusy = true; globalThis._agAt = Date.now(); agTokScan().catch((e) => log('agTok ' + e.message)).finally(() => { globalThis._agBusy = false; }); } /* 11/1 22:21：AI 熱門代幣每分鐘檢查 */
+      if (!globalThis._agBusy && Date.now() - (globalThis._agAt || 0) > 60e3) { globalThis._agBusy = true; globalThis._agAt = Date.now(); agTokScan().catch((e) => log('agTok ' + e.message)).finally(() => { globalThis._agBusy = false; }); } if (!globalThis._genBusy && Date.now() - (globalThis._genAt || 0) > 60e3) { globalThis._genBusy = true; globalThis._genAt = Date.now(); genScan().catch((e) => log('gen ' + e.message)).finally(() => { globalThis._genBusy = false; }); } /* 11/1 22:21：AI 熱門代幣每分鐘檢查 */
       if (!globalThis._openBusy && Date.now() - (globalThis._openAt || 0) > 15e3) { globalThis._openBusy = true; globalThis._openAt = Date.now(); openWatch(head).catch((e) => log('openWatch ' + e.message)).finally(() => { globalThis._openBusy = false; }); } /* v2.8.0：开盘侦测每 15 秒 */
       { const fast = Object.values(S.tokens).some((st) => st.openAt && Date.now() - st.openAt < RULE.fastMin * 60e3 && st.stage !== 9 && !st.done); const full = Date.now() - lastHold > 5000; if (!globalThis._holdBusy && full) { lastHold = Date.now(); globalThis._holdBusy = true; const tH = Date.now(); holdings(head, false).catch((e) => log('holdings ' + e.message)).finally(() => { globalThis._holdBusy = false; if (Date.now() - tH > 20e3) log(`持倉檢查花了 ${Math.round((Date.now() - tH) / 1000)} 秒`); }); } if (fast && !globalThis._fastBusy && Date.now() - (globalThis._fastAt || 0) > 15e3) { globalThis._fastBusy = true; globalThis._fastAt = Date.now(); holdings(head, true).catch((e) => log('holdings fast ' + e.message)).finally(() => { globalThis._fastBusy = false; }); } } /* v2.8.2：刚开盘 30 分钟内的币独立每 15 秒看价格，不再等完整检查跑完 */ /* 持倉檢查放背景，同時只跑一個，避免重複賣 */
       if (!globalThis._flapAt || Date.now() - globalThis._flapAt > 30e3) { globalThis._flapAt = Date.now(); if (!globalThis._flapBusy) { globalThis._flapBusy = true; flapAgentWatch().catch((e) => log('flap ' + e.message)).finally(() => { globalThis._flapBusy = false; }); } }
@@ -2161,3 +2336,62 @@ async function main() {
 process.on('uncaughtException', (e) => log('uncaught ' + e.message));
 process.on('unhandledRejection', (e) => log('unhandled ' + (e?.message || e)));
 main();
+
+/* 11/2 邀请绑定（她：以后有收入要返佣给邀请人／群主，不能出问题）：用主钱包「签一段文字」证明「我被谁邀请／我申请这个邀请码」——不送交易、不花 gas、不动钱。
+   签好的结果存 data/bind.json，雷达画面再把它交给官方 TG 机器人登记；机器人会核对签名，别人冒用你的钱包地址也签不出来。 */
+let BIND = null; try { BIND = await import('./bind.mjs'); } catch (e) { log('邀请绑定模组载入失败 ' + e.message); }
+async function bindSign(kind, code) { const W = WALLETS[0]; if (!W || !BIND) throw new Error('还没有钱包');
+  const msg = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_signTypedData_v4', params: [W.addr, JSON.stringify(BIND.bindTyped(kind, code, W.addr))] });
+  let p = await W.baw(['sign-message', 'preview', '--binanceChainId', '56', '--message', W.baw.sh ? JSON.stringify(msg) : msg, '--signType', 'EIP712'], 60000);
+  if (!p.j?.data?.requestId) p = await W.baw(['sign-message', 'preview', '--binanceChainId', '56', '--message', W.baw.sh ? msg : JSON.stringify(msg), '--signType', 'EIP712'], 60000);
+  const rid = p.j?.data?.requestId; if (!p.j?.success || !rid) throw new Error('签名预览失败 ' + String(p.j?.error?.message || p.t || '').slice(0, 100));
+  let pm = {}; try { pm = JSON.parse(p.j.data.parsedMessage?.message || '{}'); } catch {}
+  if (pm.code !== code || String(pm.wallet || '').toLowerCase() !== W.addr || pm.kind !== kind) throw new Error('要签的内容跟预期不一样，已取消');
+  const x = await W.baw(['sign-message', 'execute', '--requestId', rid], 60000); let d = x.j?.data;
+  for (let i = 0; i < 5 && d && !d.signature && d.orderId; i++) { await sleep(3000); d = (await W.baw(['sign-message', 'result', '--order-id', d.orderId], 60000)).j?.data || d; }
+  if (!d?.signature) throw new Error('签名失败 ' + String(x.j?.error?.message || x.t || '').slice(0, 100));
+  const sig = String(d.signature).replace(/^0x/, '').slice(0, 128), v = parseInt(d.signatureRecovery || '0', 16) % 27;
+  if (!BIND.verifyBind(kind, code, W.addr, sig, v)) throw new Error('签名核对不过');
+  return { kind, code, wallet: W.addr, sig, v, at: Date.now() }; }
+setInterval(async () => { if (globalThis._bindBusy || !WALLETS[0] || !BIND) return; const S = radarSet(); let B = {}; try { B = JSON.parse(readFileSync(BINDF, 'utf8')); } catch {}
+  const W = WALLETS[0], want = [];
+  const rc = String(S['ref.code'] || '').toLowerCase(); if (BIND.CODE_RE.test(rc) && !(B.join?.code === rc && B.join?.wallet === W.addr)) want.push(['join', rc]);
+  const mc = String(S['ref.mine'] || '').toLowerCase(); if (BIND.CODE_RE.test(mc) && !(B.code?.code === mc && B.code?.wallet === W.addr)) want.push(['code', mc]);
+  if (!want.length || (B.errAt && Date.now() - B.errAt < 60e3 && B.errKey === JSON.stringify(want))) return;
+  globalThis._bindBusy = 1; try { for (const [k, c] of want) { B[k] = await bindSign(k, c); log(`[邀请] 主钱包已签好${k === 'join' ? '邀请码 ' : '专属邀请码申请 '}${c}（只是签名，没有送交易）`); } B.err = ''; B.errAt = 0; }
+  catch (e) { B.err = String(e.message || e).slice(0, 150); B.errAt = Date.now(); B.errKey = JSON.stringify(want); log('[邀请] ' + B.err); }
+  finally { try { writeFileSync(BINDF, JSON.stringify(B)); } catch {} globalThis._bindBusy = 0; } }, 15000);
+
+/* 11/2 她 19:17：拿掉「USDT 自动换回 BNB」——一键买可以直接选用 BNB 或 U 付，不替用户互换（浪费时间和手续费） */
+
+/* 11/2 反向检查发现：开源版画面可以加「监测的 TG 频道」，引擎却没在读（只有个人版有）→ 补上。频道贴的合约加入追踪，照同一套规则决定打不打 */
+async function callChannelWatch() { /* 她 10/31 19:36：監測 TG 頻道 t.me/agentidcall；11/1 15:13：改成可以監測多個頻道（data/tg_channels.txt 一行一個頻道名），頻道貼的合約自動加入追蹤，照同一套規則決定打不打；在本機跑，不花錢、不花 Claude 用量 */
+  let chs = ['agentidcall']; try { const f = join(DIR, 'data', 'tg_channels.txt'); if (existsSync(f)) { const l = readFileSync(f, 'utf8').split(/\r?\n/).map((x) => x.trim().replace(/^@|^https?:\/\/t\.me\/(s\/)?/i, '').replace(/\/.*$/, '')).filter((x) => /^[A-Za-z0-9_]{4,40}$/.test(x)); if (l.length) chs = [...new Set(['agentidcall', ...l])]; } } catch {}
+  S.callSeen = S.callSeen || {}; S.callHits = S.callHits || {};
+  for (const ch of chs) {
+    let html = ''; try { html = await (await fetch('https://t.me/s/' + ch, { signal: AbortSignal.timeout(15000) })).text(); } catch { continue; }
+    const posts = html.split(`data-post="${ch}/`).slice(1); const first = !S.callSeen['init:' + ch] && ch !== 'agentidcall'; S.callSeen['init:' + ch] = 1;
+    for (const p of posts) { const id = parseInt(p, 10); const key = ch === 'agentidcall' ? id : ch + '/' + id; if (!id || S.callSeen[key]) continue; S.callSeen[key] = ts(); if (first) continue; /* 新加的頻道：舊貼文只記下來，不回頭打 */
+      const text = p.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' '); const name = (text.match(/\$([A-Za-z0-9_一-鿿]{2,20})/) || [])[1] || '';
+      const addrs = [...new Set((text.match(/0x[a-fA-F0-9]{40}/g) || []).map((x) => x.toLowerCase()))];
+      for (const c of addrs) { if (INFRA.has(c)) continue; const code = ((await rpc('eth_getCode', [c, 'latest']).catch(() => '')) || '').toLowerCase(); if (code.length <= 2) continue;
+        const hits = (S.callHits[c] = S.callHits[c] || []); if (!hits.includes(ch)) hits.push(ch); (S.callLog = S.callLog || []).push({ c, src: String(ch).slice(0, 40), at: Date.now() }); if (S.callLog.length > 600) S.callLog.splice(0, S.callLog.length - 600); /* 11/2：信号页喊单流＋车头榜 */
+        S.paid = S.paid || {}; if (!S.paid[c]) S.paid[c] = { at: Date.now(), name: name ? '$' + name : '頻道項目', done: {}, fromCall: key, needLearn: 1 }; S.paid[c].calls = hits.length;
+        log(`頻道 ${ch} 第 ${id} 則：${name ? '$' + name + ' ' : ''}${c} 加入追蹤（目前 ${hits.length} 個頻道提到：${hits.join('、')}；照規則：進度和錢包數都達到門檻才打）`);
+        for (const W of WALLETS) { const ff = await findFree(W.addr, c, code).catch(() => null); if (ff) queueMint(c, ff.n, W, ff.v); } }
+    }
+  }
+  const ks = Object.keys(S.callSeen).filter((k) => !k.startsWith('init:')); if (ks.length > 2000) for (const k of ks.slice(0, ks.length - 2000)) delete S.callSeen[k];
+  const hk = Object.keys(S.callHits); if (hk.length > 3000) for (const k of hk.slice(0, hk.length - 3000)) delete S.callHits[k];
+}
+/* 11/2 她：用户申请、她审核过的 X 帐号由官方统一监测，贴了合约就发布到 radar-data/xwatch.json；雷达下载后存 data/xwatch.json，这里当成频道贴文处理 */
+async function xHitWatch() { let X = null; try { X = JSON.parse(readFileSync(join(DIR, 'data', 'xwatch.json'), 'utf8')); } catch { return; }
+  S.callSeen = S.callSeen || {}; S.callHits = S.callHits || {}; const first = !S.callSeen['init:x'];
+  for (const it of (X.hits || []).slice(-300)) { const key = 'x:' + it.id; if (!it.id || !/^0x[0-9a-f]{40}$/.test(it.c || '') || S.callSeen[key]) continue; S.callSeen[key] = ts(); if (first || Date.now() - (it.at || 0) > 6 * 3600e3) continue;
+    const c = it.c; if (INFRA.has(c)) continue; const code = ((await rpc('eth_getCode', [c, 'latest']).catch(() => '')) || '').toLowerCase(); if (code.length <= 2) continue; const src = '𝕏 @' + String(it.h || '').slice(0, 20);
+    const hits = (S.callHits[c] = S.callHits[c] || []); if (!hits.includes(src)) hits.push(src); (S.callLog = S.callLog || []).push({ c, src: String(src).slice(0, 40), at: Date.now() }); if (S.callLog.length > 600) S.callLog.splice(0, S.callLog.length - 600); /* 11/2：信号页喊单流＋车头榜 */
+    S.paid = S.paid || {}; if (!S.paid[c]) S.paid[c] = { at: Date.now(), name: '頻道項目', done: {}, fromCall: key, needLearn: 1 }; S.paid[c].calls = hits.length;
+    log(`${src} 贴了 ${c}，加入追踪（照规则：进度和钱包数都达到门槛才打）`);
+    for (const W of WALLETS) { const ff = await findFree(W.addr, c, code).catch(() => null); if (ff) queueMint(c, ff.n, W, ff.v); } }
+  S.callSeen['init:x'] = 1; }
+setInterval(() => { if (globalThis._callBusy) return; globalThis._callBusy = true; callChannelWatch().then(() => xHitWatch()).catch((e) => log('call ' + e.message)).finally(() => { globalThis._callBusy = false; }); }, 60e3);
