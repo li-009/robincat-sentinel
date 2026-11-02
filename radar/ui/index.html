@@ -76,7 +76,7 @@ textarea{width:100%;min-height:80px;background:#0a0c10;border:1px solid var(--li
 .steps li{align-items:flex-start}.n{flex:none;width:22px;height:22px;border-radius:50%;background:var(--gold);color:#111;font-weight:700;font-size:12px;display:grid;place-items:center;margin-top:2px}
 .qr{display:flex;gap:14px;align-items:center;background:var(--card2);border-radius:12px;padding:12px;margin-top:12px}.qrbox{width:92px;height:92px;background:#fff;color:#111;border-radius:8px;display:grid;place-items:center;font-size:18px;line-height:1.1;text-align:center;flex:none}
 @keyframes nt{from{transform:translateX(0)}to{transform:translateX(-100%)}}#newsT{animation:nt linear infinite}#newsW:hover #newsT{animation-play-state:paused}#newsT a{color:var(--ink);cursor:pointer;margin-right:34px;text-decoration:none}#newsT a:hover{color:#f0b90b}#newsT small{color:var(--mute);margin-right:6px}
-#recent{display:none!important}
+#recent,#rnRow{display:none!important}
 </style>
 </head>
 <body>
@@ -110,7 +110,7 @@ textarea{width:100%;min-height:80px;background:#0a0c10;border:1px solid var(--li
 </section>
 
 <section class="page" id="nwp">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div><h2 style="margin:0;font-size:20px">📰 新闻</h2><small style="color:var(--mute)" id="nwS">每分钟自动更新，新的会排在最上面</small></div><div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute);cursor:pointer">看盘页跑马灯<span class="sw"><input type="checkbox" id="newsSw" onchange="newsOn(this.checked?1:0)"><i></i></span></label><div class="seg" id="nwC" style="display:flex;gap:6px"><button class="btn y s" data-nc="all">全部</button><button class="btn g s" data-nc="crypto">币圈</button><button class="btn g s" data-nc="fin">财经</button><button class="btn g s" data-nc="tech">科技</button></div></div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div><h2 style="margin:0;font-size:20px">📰 新闻</h2><small style="color:var(--mute)" id="nwS">每分钟自动更新，新的会排在最上面</small></div><div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><label style="display:none!important;gap:8px;align-items:center;font-size:13px;color:var(--mute);cursor:pointer">看盘页跑马灯<span class="sw"><input type="checkbox" id="newsSw" onchange="newsOn(this.checked?1:0)"><i></i></span></label><div class="seg" id="nwC" style="display:flex;gap:6px"><button class="btn y s" data-nc="all">全部</button><button class="btn g s" data-nc="crypto">币圈</button><button class="btn g s" data-nc="fin">财经</button><button class="btn g s" data-nc="tech">科技</button></div></div></div>
   <div id="nwL" style="display:grid;gap:8px"></div>
 </section>
 <section class="page" id="hold">
