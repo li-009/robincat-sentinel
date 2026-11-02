@@ -1,6 +1,6 @@
 {
-  "version": "1.0.5",
-  "sha256": "208c76c44bf7311f12422ed76f259911bc6780dbc146a52a53f04ec47a4322b4",
+  "version": "1.0.6",
+  "sha256": "096a90625d9d223ac37025fdf1e54af8274d783dcfadd88ea774d194b7549720",
   "files": {
     ".gitignore": "04f334bd6b478d850354fbcb041d2d573b2984bb2d3fcdd9bc8a4128ecd27915",
     "AI说明书.md": "a7b250f1bc666f158a0edfc08e25d3e47a4ff1dcab79f1476eebc85f2cc84d38",
@@ -11,7 +11,7 @@
     "login.mjs": "3bbdb56ae9cc050964613a71a47bc34e662a3c658e2f454c6dcc0130b5ecfa50",
     "plugin-host.mjs": "b6ef2e101ccfce75b7a4a63704abd9fcba421e49dc1f00b6ccb143127712d641",
     "plugins.mjs": "26df7c8a3bd8a44fc64ca7dbc3a34a2d57090c8578d44f21444a9d07097db8c2",
-    "README.md": "3911d8e1dc66a8f478fc8877599824de7e24d1e6d8566834fc41d024eeca1950",
+    "README.md": "c2f1176da9a8a8b0fea848a43f7b7c6b2539669ba3f8867ea81dd1451a7dd2a1",
     "rh.mjs": "d4b4886505474b7247b71a977d49d2840d1f2e37d7fdacbaa14dbe47dd4c62e7",
     "setup.mjs": "4ccaf5c184fa693893c6a23cf94963e513c796bed88df3598c3dbf7b1e55500c",
     "setup_wallet2.bat": "b530714d88d90620b56b550c7581121201adf10bc0974b22f55a48204053f3f9",
@@ -19,12 +19,12 @@
     "start_hidden.vbs": "116f459e8fa5b31bddfd2d91766fe7d680810eac65188e8b76460ae09c52acd6",
     "start_loop.bat": "8a026219c7ecaa25a128a6a61f16306a20e7d2c4695df216149df619140a4ab1",
     "tg_login.bat": "1b358e1311fe5c0ef32580f47a150904f0028a4451b6409124f9eed46f81dbc9",
-    "watch.mjs": "208c76c44bf7311f12422ed76f259911bc6780dbc146a52a53f04ec47a4322b4",
+    "watch.mjs": "096a90625d9d223ac37025fdf1e54af8274d783dcfadd88ea774d194b7549720",
     "一键安装.bat": "e59f099e7bc39dca23de7c4c0c36df5872a8e0e47d9e2db48d33fc42975d278a",
-    "radar/main.cjs": "0535bc495f0acb8e707dfa46bfb56c7951028190d5c5534df2afe85f4229b39d",
-    "radar/official.json": "3c6a74d6ad0ba23f4b63ddd56296fa6a78981879248f1c794d7b957820ab75ef",
-    "radar/official.sig": "30f7eff55aa273be40b1595fb685cd301e0bdc0977effe018b1e3633a299eb57",
-    "radar/package.json": "551009376f31df3bcf7d2a32264e476b3efba9612f8f78e6477b19debc474357",
+    "radar/main.cjs": "ba4c76c4f1868e47b58788e21f555fe0ab4161cd52d301b131a210e1648131d0",
+    "radar/official.json": "a806e281b5725f93c15b874a935da4e7fe89b1baeae0163fcc0254447046a9cf",
+    "radar/official.sig": "4af73a56fbc1213b9533cdbd6548a3879b8469ca89623ef0d442b3b6f858be7b",
+    "radar/package.json": "055e5712e6fde75e7773b0f81a2f666b7fa9ce16f77799d88960d873c03fb511",
     "radar/preload.cjs": "0b8b0a1548cead0d520a987f383151568fdbefab7bf59ba67481705c28cfabc0",
     "radar/settings_schema.json": "8c52f990e8ddada769fa47cde4cd26bc124af057701763cdfb6122e0c55d8bdf",
     "radar/启动罗宾猫雷达.vbs": "a2307b8d69d4de1347e1bc8c7604337586840dda45f2ddbeac0163a4b242e869",
@@ -46,9 +46,12 @@
     "smartfind.mjs": "232718266027f0a2979a6a7111976399cba5ed0dbccc5f263ccdb77ac88da693"
   },
   "notes": [
-    "🟢 右上角运行中会亮绿灯、写「运行中」，一眼看出雷达有没有在跑",
-    "✅ 设定完按「确认开始」会跳提示，告诉你怎么确认雷达在运行、怎么看实时日志",
-    "（包含 1.0.4：邀请码安全升级，官方清单改成加密）"
+    "🎯 强制打更准：份数参数不在第一个位置的合约也能自动降份数，不会再默默放弃",
+    "📣 强制打没打成时会写清楚原因（例如「一份就要 14U，超过预算 10U」、「已经铸完」）",
+    "⏳ 强制打遇到雷达正在检查同一个项目时会等它做完，不再直接跳过",
+    "🛑 已经卖完的项目不再送交易、也不再一直重查",
+    "📊 看盘的「符合条件」改用你雷达实际用的门槛，不会再跟引擎对不上",
+    "（包含 1.0.5：运行中亮绿灯；1.0.4：邀请码加密）"
   ],
   "critical": true
 }

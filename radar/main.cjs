@@ -21,14 +21,16 @@ function snapshot() {
   if (Date.now() - cache.at < 3000 && cache.v) return cache.v;
   const S = readJSON(path.join(DATA, 'watch_state.json'), {});
   const now = Date.now(), px = S.lastBnbUsd || 0;
+  const TH = { go: Math.round(((S.thrNow?.go) || 0.6) * 100), ag: Math.round((S.thrNow?.ag) || 100) }; /* 11/3：用引擎实际门槛（以前画面写死 60%/100，引擎可能是 68%/110） */
   const board = Object.entries(S.paid || {}).filter(([c, P]) => now - (P.at || 0) < 172800e3).map(([c, P]) => {
     const prog = Math.round((P.progress || 0) * 100), ag = P.agents || 0, grp = Object.keys(S.grpHits?.[c]?.chats || {}).length;
     const done = Object.values(P.done || {}).some((x) => x === 'minted' || x === 'free');
     const why = String(P.lastReason || '');
-    let verdict = 'watch', note = `进度要 60%、AI 钱包要 100 个`;
+    let verdict = 'watch', note = `进度要 ${TH.go}%、AI 钱包要 ${TH.ag} 个`;
     if (done) { verdict = 'done'; note = '已打'; }
     else if (/不打|騙|贔|貔貅|大量部署|黑名單|不是 Agent/.test(why)) { verdict = 'no'; note = why.replace(/，?照規則不打|，先不打.*$/, ''); }
-    else if (prog >= 60 && ag >= 100) { verdict = 'ok'; note = '符合条件'; }
+    else if (/已经铸完/.test(why) || prog >= 100) { verdict = 'no'; note = '已经铸完，打不了'; }
+    else if (prog >= TH.go && ag >= TH.ag) { verdict = 'ok'; note = '符合条件'; }
     return { c, name: P.name || c.slice(0, 8), prog, ag, grp, verdict, note, at: P.at || 0, col: done ? 'done' : prog >= 30 ? 'hot' : 'new' };
   }).filter((x) => x.verdict !== 'no' || x.grp > 0 || x.ag > 20).sort((a, b) => (b.ag + b.prog * 3 + b.grp * 30) - (a.ag + a.prog * 3 + a.grp * 30)).filter((x, i) => i < 90 || x.verdict === 'done');
   const WL = readJSON(path.join(DATA, 'radar_wallets.json'), { list: [] }).list || [];
