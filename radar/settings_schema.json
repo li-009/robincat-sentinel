@@ -712,13 +712,13 @@
    "k": "risk.noProxy",
    "g": "risk",
    "type": "bool",
-   "def": 1,
+   "def": 0,
    "min": 0,
    "max": 1,
-   "zh": "可升级的合约不打",
-   "en": "Skip upgradeable contracts",
-   "dzh": "项目方能换掉合约规则的（代理／可升级合约），付钱后随时能改规则",
-   "den": "Contracts whose rules the project can swap later (proxy / upgradeable)"
+   "zh": "可升级的合约不打（预设关）",
+   "en": "Skip upgradeable contracts (off by default)",
+   "dzh": "项目方能换掉合约规则的（代理／可升级合约）不打。有些正常项目也是这种合约，打开可能错过好项目，所以预设关",
+   "den": "Skip proxy / upgradeable contracts. Some legit projects use them too, so it is off by default"
   },
   {
    "k": "risk.probe",

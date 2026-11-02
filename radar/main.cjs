@@ -188,6 +188,8 @@ function createWindow() {
   win = new BrowserWindow({ width: 1320, height: 840, minWidth: 1100, minHeight: 680, title: '罗宾猫雷达', icon: ICON, backgroundColor: '#0b0d11', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   win.loadFile(path.join(__dirname, 'ui', 'index.html'));
+  /* 她 11/2 15:21：F5 要一定能重新整理（不管焦点在哪） */
+  win.webContents.on('before-input-event', (e, inp) => { if (inp.type === 'keyDown' && (inp.key === 'F5' || ((inp.control || inp.meta) && String(inp.key).toLowerCase() === 'r'))) { e.preventDefault(); win.webContents.executeJavaScript("try{sessionStorage.setItem('goBoard','1')}catch{}").catch(() => {}).finally(() => win.webContents.reload()); } });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));                 // 安全：不开任何新视窗
   win.webContents.on('will-navigate', (e) => e.preventDefault());                    // 安全：不允许跳到别的网站
   win.on('close', (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });   // 关视窗 = 缩到右下角，继续在背景跑
