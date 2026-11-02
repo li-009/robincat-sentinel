@@ -784,6 +784,7 @@ async function progressSweep() { /* 使用者 10/31 23:21 查 Pulsepanther 沒�
 const baseNm = (n) => String(n || '').replace(/\s*[（(]\s*\$?[^)）]*[)）]\s*$/, '').replace(/^\$/, '').trim().toLowerCase();
 async function cloneStall(c, val = 0n) {
   const set = radarSet(); const P = S.paid?.[c]; const now = Date.now();
+  { const pw = await preventWhy(c).catch(() => ''); if (pw) return pw; }
   if (Number(set['bsc.cloneSkip']) !== 0) {
     let nm = P?.name || ''; if (!baseNm(nm) || /^(頻道項目|搜寻项目)$/.test(nm)) { if (P && P.nm == null) P.nm = tokStr(await call(c, '0x06fdde03').catch(() => '')) || ''; nm = P?.nm || nm; }
     const b = baseNm(nm);
@@ -798,6 +799,39 @@ async function cloneStall(c, val = 0n) {
   }
   return '';
 }
+/* 11/2 预防（她：1～5 都做）：①只信模拟 ②可升级合约不打 ③先小额试水 ④每日亏损保险丝 ⑤官方共享黑名单 */
+const EIP1967_IMPL = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc', EIP1967_BEACON = '0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50';
+const UPG = new Map();
+function hasOp(code, op) { const h = String(code || '').replace(/^0x/, ''); for (let i = 0; i < h.length; i += 2) { const b = parseInt(h.substr(i, 2), 16); if (b === op) return true; if (b >= 0x60 && b <= 0x7f) i += (b - 0x5f) * 2; } return false; }
+async function upgradable(a) {
+  a = String(a || '').toLowerCase(); if (!/^0x[0-9a-f]{40}$/.test(a)) return ''; const k = UPG.get(a); if (k && Date.now() - k.t < 3600e3) return k.r; let r = '';
+  try { const code = String(await rpc('eth_getCode', [a, 'latest']) || '0x').toLowerCase();
+    if (code.includes('363d3d373d3d3d363d73')) r = '代理合约（背后的逻辑项目方可以换掉）';
+    else { for (const sl of [EIP1967_IMPL, EIP1967_BEACON]) { const v = await rpc('eth_getStorageAt', [a, sl, 'latest']).catch(() => null); if (v && /^0x[0-9a-f]+$/i.test(v) && BigInt(v) > 0n) { r = '可升级合约（项目方随时能换掉合约规则）'; break; } } }
+    if (!r && code.length > 2 && code.length < 600 && hasOp(code, 0xf4)) r = '代理合约（背后的逻辑项目方可以换掉）';
+  } catch {} UPG.set(a, { t: Date.now(), r }); return r;
+}
+const BL = { at: 0, c: new Set(), d: new Set() };
+function blackOf(c) {
+  if (Date.now() - BL.at > 60e3) { BL.at = Date.now(); try { const j = JSON.parse(readFileSync(join(DIR, 'data', 'blacklist.json'), 'utf8')); BL.c = new Set((j.c || []).map((x) => String(x).toLowerCase())); BL.d = new Set((j.d || []).map((x) => String(x).toLowerCase())); } catch {} }
+  c = String(c || '').toLowerCase(); if (BL.c.has(c)) return '在官方黑名单（其他雷达回报过是诈骗）'; const dep = (S.depFrom || {})[c]; if (dep && BL.d.has(String(dep).toLowerCase())) return '部署者在官方黑名单'; return '';
+}
+async function preventWhy(c) {
+  const set = radarSet();
+  if (Number(set['risk.blacklist']) !== 0) { const b = blackOf(c); if (b) return b; }
+  if (Number(set['risk.noProxy']) !== 0) { const u = await upgradable(c); if (u) return u; }
+  return '';
+}
+/* ④ 每日亏损保险丝：今天卖出的币合计亏超过设定（预设 30U）→ 全部自动买暂停，只发一次 TG；要自己按「自动买」才会再开 */
+function lossToday() {
+  try { const d0 = new Date(); d0.setHours(0, 0, 0, 0); const t0 = d0.getTime(); let loss = 0;
+    const lines = readFileSync(join(DIR, 'data', 'journal.jsonl'), 'utf8').split('\n').slice(-3000);
+    for (const l of lines) { if (!l.trim()) continue; let x; try { x = JSON.parse(l); } catch { continue; } if ((x.at || 0) < t0 || x.side !== '卖' || !(+x.cost > 0)) continue; loss += (+x.cost) - (+x.usd || 0); }
+    return loss; } catch { return 0; }
+}
+setInterval(() => { try { const cap = Number(radarSet()['risk.dayLoss'] ?? 30); if (!(cap > 0)) return; const k = new Date().toDateString(); if (S.fuseDay === k) return; const loss = lossToday(); if (loss <= cap) return;
+  S.fuseDay = k; writeFileSync(join(DIR, 'data', 'pause_buy.txt'), String(Date.now())); save(); log(`保险丝：今天卖出合计亏 ${loss.toFixed(1)}U，超过 ${cap}U，全部自动买已暂停`);
+  tg(`🧯 保险丝跳了：今天卖出的币合计亏了约 ${loss.toFixed(1)}U（上限 ${cap}U），所有自动买已暂停。\n卖出、止盈照常。确认没问题后，在雷达右上角按「自动买」再打开。`).catch(() => {}); } catch {} }, 120e3).unref();
 async function autoMint(c, fname, W = WALLETS[0], val = 0n) {
   /* 使用者 10/31 19:21：新規則——不管免費還是付費，進度超過 50% 就打，之前的規矩（重複 DEV、黑名單、熱度、手續費上限…）全部不看；只保留貔貅類安全檢查（每筆都模擬、不能授權、不能扣到預期外的資產、Flap 禁止）。讀不到進度的才用熱度判斷 */
   { const sd = await serialDev(c); if (sd) { S.paid = S.paid || {}; if (S.paid[c]) { S.paid[c].serialLog = 1; S.paid[c].lastReason = sd + '，照規則不打'; } return `⛔ ${sd}，照規則不打`; } } /* 除錯 11/1：被「大量部署者」擋掉的，以前錯過名單會誤寫成「還沒找到能打的方式」 */
@@ -1315,7 +1349,7 @@ function applySettings(set) {
   globalThis.RH_APPLY?.(set, SCHEMA);
 }
 setInterval(() => { try { radarSet(); } catch {} }, 15e3).unref();
-const radarOff = () => existsSync(join(DIR, 'data', 'pause_buy.txt')) || radarSet().auto === false || (!radarSet().setupDone && existsSync(join(DIR, 'radar', 'main.cjs'))); /* 有装罗宾猫雷达的：第一次打开还没选打法（setupDone）之前不自动买；只用 /update 更新单档的旧用户不受影响 */ /* 暂停／关掉自动打：只停自动买，卖出照常 */
+const radarOff = () => existsSync(join(DIR, 'data', 'pause_buy.txt')) || radarSet().auto === false || (!radarSet().setupDone && existsSync(join(DIR, 'radar', 'main.cjs'))) || (existsSync(join(DIR, 'radar', 'main.cjs')) && !existsSync(join(DIR, '.sign')) && !/^([0-9a-f]{8}|nancy)$/i.test(String(radarSet()['ref.code'] || ''))); /* 11/2：要有邀请码才会自动买（没有就只看盘） */ /* 有装罗宾猫雷达的：第一次打开还没选打法（setupDone）之前不自动买；只用 /update 更新单档的旧用户不受影响 */ /* 暂停／关掉自动打：只停自动买，卖出照常 */
 const SELF_FILE = fileURLToPath(import.meta.url);
 const ORD_SEEN = new Set(); let LK_SEQ = 0; /* 只保留最新一次搜寻的结果 */
 async function radarOrders() {
@@ -1677,6 +1711,7 @@ async function paidLoop(mode = 'all', shard = null) {
     const sym = tokAddr ? tokStr(await cc(tokAddr, '0x95d89b41', 3600e3)) || P.name || c.slice(0, 8) : P.name || c.slice(0, 8);
     await Promise.all(WALLETS.map(async (W) => { 
       if (P.done[W.name]) return;
+      if (!forced && WALLETS.length > 1 && W !== WALLETS[0] && !P.probeOk && Number(radarSet()['risk.probe']) !== 0) { /* ③ 先小额试水：第一个钱包真的收到东西，第二个钱包才打 */ if (P.done[WALLETS[0].name] !== 'minted') { P.probeWait = P.probeWait || Date.now(); if (Date.now() - P.probeWait < 180e3) return; } else { const A = WALLETS[0].addr; let got = 0n; for (const t of [P.tok, c].filter(Boolean)) { const r = await call(t, '0x70a08231' + wa(A)).catch(() => ''); if (r && r.length >= 66) got += BigInt(r.slice(0, 66)); } if (!(got > 0n)) { if (!P.probeLog) { P.probeLog = 1; log(`试水：${P.name || c} 第一个钱包还没真的收到东西，第二个钱包先不打`); } return; } P.probeOk = 1; } }
       if (!forced) { const rb = await riskBlock(W, c, 0n, '0x', false, true).catch(() => ''); if (rb) { if (P.riskLog !== rb) { P.riskLog = rb; log(`[${W.name}] 風控暫停 ${P.name || c}：${rb}`); } return; } }
       const budU = forced ? capOf(c) : Math.min(P.isNftBuy ? 10 : PAID.maxUsd, PAID.dayUsd - paidDayUsd(W), P.maxOurBnb > 0 && price > 0 ? P.maxOurBnb * price : 1e9); /* v2.8.0：合计不超过总盘 2% */ /* NFT 預算 10U */ if (budU < 1) { if (P.dayCapLog !== new Date().toDateString()) { P.dayCapLog = new Date().toDateString(); log(`[${W.name}] 今天付費已達 ${PAID.dayUsd}U 上限，${P.name || c} 不打`); } return; } /* 使用者 11/1 17:38：每日總上限 */
       try {

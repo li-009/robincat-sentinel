@@ -2,6 +2,11 @@
  "_说明": "罗宾猫雷达的所有可调数字。玩家在「设定」里改，或叫自己的 AI 改 data/radar_settings.json。新增设定：在这里加一项（k 不能重复），再到 watch.mjs 的 applySettings() 或 rh.mjs 的 applyRH() 接上。",
  "groups": [
   {
+   "id": "risk",
+   "zh": "安全防护（全部策略都适用）",
+   "en": "Safety (applies to every strategy)"
+  },
+  {
    "id": "bsc",
    "zh": "BNB Chain · AI 铸造项目",
    "en": "BNB Chain · AI mint projects"
@@ -689,6 +694,55 @@
    "en": "Real wallet min BNB",
    "dzh": "",
    "den": ""
+  },
+  {
+   "k": "risk.dayLoss",
+   "g": "risk",
+   "def": 30,
+   "min": 0,
+   "max": 100000,
+   "unit": "U",
+   "uen": "U",
+   "zh": "每天最多亏",
+   "en": "Max loss per day",
+   "dzh": "今天卖出的币合计亏超过这个数，全部自动买暂停（0 = 不限）",
+   "den": "If today's sells lose more than this in total, all auto-buy pauses (0 = off)"
+  },
+  {
+   "k": "risk.noProxy",
+   "g": "risk",
+   "type": "bool",
+   "def": 1,
+   "min": 0,
+   "max": 1,
+   "zh": "可升级的合约不打",
+   "en": "Skip upgradeable contracts",
+   "dzh": "项目方能换掉合约规则的（代理／可升级合约），付钱后随时能改规则",
+   "den": "Contracts whose rules the project can swap later (proxy / upgradeable)"
+  },
+  {
+   "k": "risk.probe",
+   "g": "risk",
+   "type": "bool",
+   "def": 1,
+   "min": 0,
+   "max": 1,
+   "zh": "先小额试水",
+   "en": "Test with one wallet first",
+   "dzh": "第一个钱包真的收到东西，第二个钱包才跟着打",
+   "den": "The 2nd wallet only buys after the 1st one actually received the asset"
+  },
+  {
+   "k": "risk.blacklist",
+   "g": "risk",
+   "type": "bool",
+   "def": 1,
+   "min": 0,
+   "max": 1,
+   "zh": "用官方黑名单",
+   "en": "Use official blacklist",
+   "dzh": "其他雷达回报过的诈骗合约、部署者，直接不打",
+   "den": "Skip scam contracts / deployers reported by other radars"
   }
  ]
 }
