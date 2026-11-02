@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('radar', {
   saveSettings: (s) => ipcRenderer.invoke('saveSettings', s),
   importAI: (k, n, b) => ipcRenderer.invoke('importAI', k, n, b),
   pause: (on) => ipcRenderer.invoke('pause', on),
+  restartEngine: () => ipcRenderer.invoke('restartEngine'),
   order: (o) => ipcRenderer.invoke('order', o),
   open: (u) => ipcRenderer.invoke('open', u),
   notify: (t, b) => ipcRenderer.invoke('notify', t, b),
