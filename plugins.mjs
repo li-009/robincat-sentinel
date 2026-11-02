@@ -22,7 +22,7 @@ function cleanPanel(p) { const items = []; for (const it of (Array.isArray(p?.it
     if (t === 'stat') items.push({ type: t, label: S_(it.label, 40), value: S_(it.value, 30), sub: S_(it.sub, 60), tone });
     else if (t === 'text' || t === 'alert') items.push({ type: t, text: S_(it.text, 600), tone });
     else if (t === 'table') items.push({ type: t, cols: (it.cols || []).slice(0, 8).map((c) => S_(c, 24)), rows: (it.rows || []).slice(0, 60).map((r) => (Array.isArray(r) ? r : []).slice(0, 8).map((c) => S_(c, 60))) });
-    else if (t === 'line') items.push({ type: t, label: S_(it.label, 40), points: (it.points || []).slice(-400).map((q) => [N_(q?.[0]), N_(q?.[1])]).filter((q) => q[0] != null && q[1] != null) });
+    else if (t === 'line') items.push({ type: t, label: S_(it.label, 40), points: (it.points || []).slice(-2500).map((q) => [N_(q?.[0]), N_(q?.[1])]).filter((q) => q[0] != null && q[1] != null), ...(Array.isArray(it.ranges) ? { ranges: it.ranges.map(Number).filter((x) => x > 0 && x <= 365).slice(0, 6) } : {}) }); /* 11/2：走势图可选天数 */
     else if (t === 'action' && /^0x[0-9a-fA-F]{40}$/.test(String(it.c || '')) && ['buy', 'mint'].includes(it.act)) items.push({ type: t, label: S_(it.label, 30), act: it.act, chain: it.chain === 'rh' ? 'rh' : 'bsc', c: String(it.c).toLowerCase(), name: S_(it.name, 30), usd: N_(it.usd) }); }
   return { title: S_(p?.title, 60), items }; }
 function savePanel(id, meta, p) { try { const dir = join(PANEL_ROOT, 'data', 'panels'); mkdirSync(dir, { recursive: true }); const v = { id, name: S_(meta?.name || id, 40), at: Date.now(), ...cleanPanel(p) }; writeFileSync(join(dir, String(id).replace(/[^\w一-鿿-]/g, '_') + '.json'), JSON.stringify(v)); } catch {} }
