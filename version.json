@@ -1,6 +1,6 @@
 {
-  "version": "1.0.6",
-  "sha256": "096a90625d9d223ac37025fdf1e54af8274d783dcfadd88ea774d194b7549720",
+  "version": "1.0.7",
+  "sha256": "bbe64f293c1c12905f42f4db1e961aa7e3c901c3abcffeba0166c182bc03e5d7",
   "files": {
     ".gitignore": "04f334bd6b478d850354fbcb041d2d573b2984bb2d3fcdd9bc8a4128ecd27915",
     "AI说明书.md": "a7b250f1bc666f158a0edfc08e25d3e47a4ff1dcab79f1476eebc85f2cc84d38",
@@ -10,8 +10,8 @@
     "LICENSE": "01669480eb47722aeef8e5310487b93fb2d920d2b699d0ae49856077ddeb765a",
     "login.mjs": "3bbdb56ae9cc050964613a71a47bc34e662a3c658e2f454c6dcc0130b5ecfa50",
     "plugin-host.mjs": "b6ef2e101ccfce75b7a4a63704abd9fcba421e49dc1f00b6ccb143127712d641",
-    "plugins.mjs": "26df7c8a3bd8a44fc64ca7dbc3a34a2d57090c8578d44f21444a9d07097db8c2",
-    "README.md": "c2f1176da9a8a8b0fea848a43f7b7c6b2539669ba3f8867ea81dd1451a7dd2a1",
+    "plugins.mjs": "6590d87ab3fdcb1b71735b42a7af8a760ab8bda873ab0a4aae3c996d257bcdb5",
+    "README.md": "f0e1ecce162caf1559408fcea05730c010238ab6538846a84ed313b9bece164f",
     "rh.mjs": "d4b4886505474b7247b71a977d49d2840d1f2e37d7fdacbaa14dbe47dd4c62e7",
     "setup.mjs": "4ccaf5c184fa693893c6a23cf94963e513c796bed88df3598c3dbf7b1e55500c",
     "setup_wallet2.bat": "b530714d88d90620b56b550c7581121201adf10bc0974b22f55a48204053f3f9",
@@ -19,17 +19,17 @@
     "start_hidden.vbs": "116f459e8fa5b31bddfd2d91766fe7d680810eac65188e8b76460ae09c52acd6",
     "start_loop.bat": "8a026219c7ecaa25a128a6a61f16306a20e7d2c4695df216149df619140a4ab1",
     "tg_login.bat": "1b358e1311fe5c0ef32580f47a150904f0028a4451b6409124f9eed46f81dbc9",
-    "watch.mjs": "096a90625d9d223ac37025fdf1e54af8274d783dcfadd88ea774d194b7549720",
-    "一键安装.bat": "e59f099e7bc39dca23de7c4c0c36df5872a8e0e47d9e2db48d33fc42975d278a",
-    "radar/main.cjs": "ba4c76c4f1868e47b58788e21f555fe0ab4161cd52d301b131a210e1648131d0",
-    "radar/official.json": "a806e281b5725f93c15b874a935da4e7fe89b1baeae0163fcc0254447046a9cf",
-    "radar/official.sig": "4af73a56fbc1213b9533cdbd6548a3879b8469ca89623ef0d442b3b6f858be7b",
-    "radar/package.json": "055e5712e6fde75e7773b0f81a2f666b7fa9ce16f77799d88960d873c03fb511",
+    "watch.mjs": "bbe64f293c1c12905f42f4db1e961aa7e3c901c3abcffeba0166c182bc03e5d7",
+    "一键安装.bat": "dc686d756625768b8bbd2e21933908ecfcc1f6c4d5fb1966f14360ee03b5c04a",
+    "radar/main.cjs": "c5383d67f876c0b6ee5cb720780c4c71591aa0438d423ed408e4e7d9797eded1",
+    "radar/official.json": "c0619c9eab3040b2c7616ba0c6a7fdf7262693613d08e6836a5b5e644e99fbb6",
+    "radar/official.sig": "0ed94a39b0ba2989eedf9612d41430269279b802f7e86e8e8b25874a4fc8144b",
+    "radar/package.json": "febb23199f4204423d63e6fd6f9a59a273ab6cd1a263fc55c83528d109114790",
     "radar/preload.cjs": "0b8b0a1548cead0d520a987f383151568fdbefab7bf59ba67481705c28cfabc0",
     "radar/settings_schema.json": "8c52f990e8ddada769fa47cde4cd26bc124af057701763cdfb6122e0c55d8bdf",
     "radar/启动罗宾猫雷达.vbs": "a2307b8d69d4de1347e1bc8c7604337586840dda45f2ddbeac0163a4b242e869",
     "radar/重启罗宾猫雷达.vbs": "80078f728e41d46915bfea82febf7f14c25db3372d030d04ffe39f3235497799",
-    "radar/ui/index.html": "076d8b02aeeb050af6c46fc4bf53e501ed39e550ec821862b7b5dce4c987456c",
+    "radar/ui/index.html": "3a7d74dec070ff216ce623be8341fdc8e200b23114853cafbd84da37eb509a95",
     "radar/ui/logo.ico": "21d35076465459c7a216581b26d6b371c0a4265244d4c202502ece25e284f9f5",
     "radar/ui/logo.png": "6d635534599ecac82ea99e05565efd0aca0d3c9deffa1f947ecf3eebd92ceeb4",
     "plugins/钱包总览.mjs": "ddaf41ca2404f562775b60f9e1ae961182eb449aaa102c12bee7c9e00cbfa7c0",
@@ -46,12 +46,12 @@
     "smartfind.mjs": "232718266027f0a2979a6a7111976399cba5ed0dbccc5f263ccdb77ac88da693"
   },
   "notes": [
-    "🎯 强制打更准：份数参数不在第一个位置的合约也能自动降份数，不会再默默放弃",
-    "📣 强制打没打成时会写清楚原因（例如「一份就要 14U，超过预算 10U」、「已经铸完」）",
-    "⏳ 强制打遇到雷达正在检查同一个项目时会等它做完，不再直接跳过",
-    "🛑 已经卖完的项目不再送交易、也不再一直重查",
-    "📊 看盘的「符合条件」改用你雷达实际用的门槛，不会再跟引擎对不上",
-    "（包含 1.0.5：运行中亮绿灯；1.0.4：邀请码加密）"
+    "🛡 安全修正：项目方在 DexScreener 填的「官网／TG／X」网址会先严格检查，防止点下去被塞恶意程式",
+    "🛡 会花钱的小工具：附的 BNB／ETH 要算进每日额度、只能跟合约互动（不能直接转给个人地址）；只看不买的小工具拿不到买卖功能",
+    "🛡 别人分享的小工具，会花钱的一律要你另外按「允许」才会跑",
+    "🛡 更新一律要验官方签名；新安装会照锁定的套件版本安装，防套件被下毒",
+    "🛡 汇出的交易纪录档用 Excel 打开时，不会再执行币名里藏的公式",
+    "（包含 1.0.6：强制打更准、没打成写原因）"
   ],
   "critical": true
 }

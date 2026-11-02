@@ -65,7 +65,7 @@ REM ---- 4.5 罗宾猫雷达（桌面视窗）----
 echo.
 echo [罗宾猫雷达] 正在安装桌面视窗（第一次大约要 1～3 分钟）...
 pushd radar
-call npm install --no-audit --no-fund
+if exist package-lock.json (call npm ci --no-audit --no-fund) else (call npm install --no-audit --no-fund)
 popd
 node -e "const p=require('path'),fs=require('fs'),os=require('os');const d=p.join(os.homedir(),'Desktop');const f=p.join(d,'罗宾猫雷达.vbs');const t='CreateObject(\"WScript.Shell\").Run \"\"\"'+p.join(process.cwd(),'radar','启动罗宾猫雷达.vbs')+'\"\"\", 0, False\r\n';try{fs.writeFileSync(f,Buffer.concat([Buffer.from([0xff,0xfe]),Buffer.from(t,'utf16le')]));console.log('桌面已建立「罗宾猫雷达」')}catch(e){console.log('建立桌面捷径失败，可以直接点 radar\\启动罗宾猫雷达.vbs')}"
 

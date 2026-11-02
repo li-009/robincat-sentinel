@@ -1524,7 +1524,7 @@ try { const { startSmart } = await import('./smart.mjs?v=' + Date.now()); startS
 try { const { startSmartFind } = await import('./smartfind.mjs?v=' + Date.now()); startSmartFind({ DIR, rpc, log }); } catch (e) { log('找聪明钱载入失败 ' + e.message); } /* 她 11/2 22:49 */
 try { const { startAir } = await import('./air.mjs?v=' + Date.now()); startAir({ DIR, WALLETS, rpc, log, tgSay, radarSet }); } catch (e) { log('空投页载入失败 ' + e.message); } /* 她 11/2 23:00 */
 try { const { startJournal } = await import('./journal.mjs?v=' + Date.now()); startJournal({ DIR, S, save, WALLETS, log, tg }); } catch (e) { log('交易日记载入失败 ' + e.message); } /* 11/2：交易日记，全部本地跑 */
-try { const { startPlugins } = await import('./plugins.mjs?v=' + Date.now()); await startPlugins({ DIR, WALLETS, log, tg, S, save, radarOff, radarSet, rpc, walletBusy: () => INFLIGHT > 0, keepBnb: PAID.keepBnb }); } catch (e) { log('外挂载入器失败 ' + e.message); } /* 11/2：量化外挂（网格、定投…），要在雷达按允许才载入 */
+try { const { startPlugins } = await import('./plugins.mjs?v=' + Date.now()); await startPlugins({ DIR, WALLETS, log, tg, S, save, radarOff, radarSet, rpc, walletBusy: () => INFLIGHT > 0, keepBnb: PAID.keepBnb, bnbUsd }); } catch (e) { log('外挂载入器失败 ' + e.message); } /* 11/2：量化外挂（网格、定投…），要在雷达按允许才载入 */
 async function tgBuy(ca, usd, opt = {}) { { const bb = buyBlock(); if (bb) return bb; } if (LOCKED()) return '🔒 还没完成邀请码绑定：现在只能看，不能买卖'; if (remoteKill()) return '🛑 官方暂时停止所有买入（避开风险中），卖出照常'; /* TG 指令「/打 合約 10U」：用第一個錢包透過幣安錢包買（曲線盤、已上池子都一樣） */
   ca = ca.toLowerCase(); usd = Number(usd) > 0 ? Number(usd) : 10; /* 金额由用户自己决定 */ const price = await bnbUsd().catch(() => 0); if (!(price > 0)) return '讀不到 BNB 價格，稍後再試';
   let hp = null; try { hp = await (await fetch(`https://api.honeypot.is/v2/IsHoneypot?address=${ca}&chainID=56`, { signal: AbortSignal.timeout(15000) })).json(); } catch {} /* 11/2：手動買也先過貔貅／稅率檢查 */
@@ -2162,7 +2162,7 @@ async function manualMints() {
 }
 // ── TG 指令：使用者直接在機器人打「賣 XXX」「賣 XXX 一半」「餘額」，幾秒內執行，不經過 Claude ──
 // ── 更新提醒（開源版才開；使用者 11/1 00:47：不自動更新，只提醒；用戶回 /update 才更新，更新前安檢＋sha256＋備份，新版起不來自動換回）──
-const UPD = { on: true, ver: '1.0.6', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
+const UPD = { on: true, ver: '1.0.7', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function updCheck(quiet = false) {
   if (!UPD.on) return null;
@@ -2206,6 +2206,7 @@ async function doUpdate() {
   if (!UPD.on) return '這個版本不自動更新';
   const v = UPD.latest && verGt(UPD.latest.version, UPD.ver) ? UPD.latest : await updCheck(true); if (!v) return `目前已經是最新版 v${UPD.ver}`;
   if (v.files) return await doUpdateAll(v); /* 她 11/2 20:00：一键更新 — 多档一起更新，验官方签名 */
+  if (existsSync(join(DIR, 'radar', 'official.json'))) return '⚠️ 新版资料不完整（缺官方签名清单），为了安全没有更新'; /* 11/3 安全审查：罗宾猫雷达一律走「验官方签名」的更新，不再退回只核对 version.json 的旧方式（version.json 没签名，被改就能塞程式） */
   const r = await fetch(`https://raw.githubusercontent.com/${UPD.repo}/main/watch.mjs?t=${Date.now()}`, { signal: AbortSignal.timeout(60000) }).catch(() => null);
   if (!r || !r.ok) return '⚠️ 下載新版失敗，等一下再試';
   const buf = Buffer.from(await r.arrayBuffer()), code = buf.toString('utf8');

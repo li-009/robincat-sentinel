@@ -49,7 +49,7 @@ export async function startPlugins(ctx) {
     const src = readFileSync(join(PD, f), 'utf8'); const hash = createHash('sha256').update(src).digest('hex');
     const doc = (src.match(/^\s*\/\/[^\n]*(\n\s*\/\/[^\n]*){0,6}/) || [''])[0].replace(/^\s*\/\/\s?/gm, '').trim().slice(0, 400);
     const bad = src.replace(/\/\/[^\n]*/g, '').match(BAD)?.[0] || '';
-    const trades = /api\.(buy|sell|call|limitBuy|limitSell)\s*\(/.test(src);
+    const trades = /\b(buy|sell|call|limitBuy|limitSell)\b/.test(src.replace(/\/\/[^\n]*/g, '')); /* 11/3 安全审查：以前只认 api.buy( 这种写法，改写成 const {call}=api 就被当成「只看不买」→ 现在程式里出现这几个字就当会花钱（宁可多问） */
     const item = { file: f, hash, doc, trades, bad, approved: okMap[f] === hash || (!trades && OFFH['plugins/' + f] === hash), size: src.length }; /* 官方签过名、又不花钱的（钱包总览）不用再按允许 */
     found.push(item);
     if (bad) { log(`外挂 ${f} 用了不允许的东西（${bad}），不载入`); continue; }
@@ -82,6 +82,7 @@ export async function startPlugins(ctx) {
   async function revokeAll(W, token) { try { const r = await W.baw(['approvals', 'list', '--limit', '100']); for (const x of r.j?.data?.list || []) { if (String(x.tokenContract).toLowerCase() !== token.toLowerCase()) continue; const v = await W.baw(['approvals', 'revoke', '--binanceChainId', '56', '--tokenContract', x.tokenContract, '--spender', x.spender, '--type', x.type || 'approve']); log(`[外挂] 卖光 ${token.slice(0, 8)}，取消授权：${v.j?.success ? '成功' : '失败'}`); } } catch (e) { log('取消授权出错 ' + e.message); } } /* 卖光就取消授权，路由出事也转不走 */
   const allCap = () => { const x = Number(radarSet()['plugins.dayUsd']); return Number.isFinite(x) && x >= 0 ? x : 100; }; const allSpent = () => Object.values(S.plug || {}).reduce((a, p) => a + ((p.spent || {})[day()] || 0), 0); /* 所有外挂加起来每天的上限：用户在设定里自己定（推荐 100U） */
 
+  let EPX = { at: 0, v: 0 }; const ethPx = async () => { if (Date.now() - EPX.at < 600e3 && EPX.v) return EPX.v; try { const j = await (await fetch('https://api.dexscreener.com/latest/dex/search?q=WETH%20USDG', { signal: AbortSignal.timeout(12000) })).json(); for (const p of j.pairs || []) if (p.chainId === 'robinhood' && p.baseToken?.symbol === 'WETH' && +p.priceUsd > 500) { EPX = { at: Date.now(), v: +p.priceUsd }; return EPX.v; } } catch {} return 0; };
   for (const L of loaded) {
     const id = L.m.meta.id; const st = S.plug[id] = S.plug[id] || { pos: {}, spent: {}, state: {} };
     const conf = () => { const z = radarSet(); const o = {}; for (const it of schemaItems.filter((x) => x.g === 'plug.' + id)) { const n = it.k.split('.').pop(); let v = z[it.k] ?? it.def; v = Number(v); if (!Number.isFinite(v)) v = it.def; o[n] = Math.min(it.max, Math.max(it.min, v)); } if (id === 'wallets') o.on = 1; /* 她 11/2 04:43：钱包总览只是看，不用开关，永远开着 */ return o; };
@@ -114,6 +115,9 @@ export async function startPlugins(ctx) {
         if (radarOff()) return { ok: false, why: '雷达暂停中／没开自动打' };
         const px = cid === '56' ? (await rpc('eth_call', [{ to: '0x0000000000000000000000000000000000000000', data: '0x' }, 'latest']).catch(() => null), null) : null; void px;
         const c = conf(); if ((st.spent[day()] || 0) >= c.dayUsd) return { ok: false, why: '今天额度用完' };
+        /* 11/3 安全审查：以前附多少 BNB 都可以、也不算进每日额度 → 坏外挂能把整个钱包的 BNB 转走。现在：①只能跟「合约」互动（不能直接转给个人地址）②附的币换算成 U 要在每日额度内，并记帐 */
+        let usdV = 0; if (v > 0) { const px = cid === '56' ? await ctx.bnbUsd?.().catch(() => 0) : await ethPx(); if (!(px > 0)) return { ok: false, why: '读不到价格，先不送出' }; usdV = v * px; if ((st.spent[day()] || 0) + usdV > c.dayUsd) return { ok: false, why: `这次要花约 ${usdV.toFixed(1)}U，超过今天额度（${c.dayUsd}U）` }; }
+        if (cid === '56') { const code = await rpc('eth_getCode', [to, 'latest']).catch(() => '0x'); if (!code || code === '0x') return { ok: false, why: '⛔ 对方不是合约（外挂不能直接把钱转给个人地址）' }; }
         const wei = BigInt(Math.round(v * 1e9)) * 10n ** 9n;
         const p = await W.baw(['contract-call', 'preview', '--binanceChainId', cid, '--from', W.addr, '--to', to, '--value', wei.toString(), '--inputData', data]);
         const sim = p.j?.data?.simulationResult, rid = p.j?.data?.requestId; if (!p.j?.success || !rid) return { ok: false, why: '预演失败：' + String(p.j?.error?.message || p.t).slice(0, 80) };
@@ -123,7 +127,7 @@ export async function startPlugins(ctx) {
         const out = mine.filter((b) => String(b.contractAddress).toLowerCase().startsWith('0xeeee') && Number(b.change) < 0).reduce((a, b) => a - Number(b.change), 0); if (out > v * 1.05 + 1e-9) return { ok: false, why: `预演要花 ${out}，比你说的 ${v} 多，不送出` };
         const x = await W.baw(['contract-call', 'execute', '--requestId', rid]); log(`[外挂 ${id}] 合约互动 ${to}：${String(x.t).slice(0, 160)}`);
         if (!x.j?.success) return { ok: false, why: '送出失败：' + String(x.j?.error?.message || x.t).slice(0, 80) };
-        (st.trades = st.trades || []).push({ side: '买', sym: '合约 ' + to.slice(0, 8), w: W.addr, usd: null, got: `${v} ${cid === '56' ? 'BNB' : 'ETH'}`, at: Date.now() }); save(); return { ok: true, tx: x.j.data?.txHash || '' }; },
+        if (usdV > 0) st.spent = { [day()]: (st.spent[day()] || 0) + usdV }; (st.trades = st.trades || []).push({ side: '买', sym: '合约 ' + to.slice(0, 8), w: W.addr, usd: usdV || null, got: `${v} ${cid === '56' ? 'BNB' : 'ETH'}`, at: Date.now() }); save(); return { ok: true, tx: x.j.data?.txHash || '' }; },
       async sell(t, qty) { const a = tok(t, true); const k = a.toLowerCase(); const p = st.pos[k]; if (!p || !(p.qty > 0)) return { ok: false, why: '外挂自己的帐本里没有这个币' };
         qty = Math.min(Number(qty) || 0, p.qty); if (!(qty > 0)) return { ok: false, why: '数量不对' }; /* 只能卖自己帐本里的量，碰不到雷达的部位 */
         const back0 = p.base || STABLES.USDT; if (a === back0) return { ok: false, why: '本金币不用卖' };
@@ -137,7 +141,7 @@ export async function startPlugins(ctx) {
     const runTick = () => new Promise((res) => { if (!H?.ch?.connected) return res('外挂沙盒没在跑');
       const ch = H.ch; const to = setTimeout(() => { ch.kill(); H = null; res('一轮超过 5 分钟，强制停止'); }, 300e3);
       const on = async (m) => { if (m.t === 'log') api.log(m.m); else if (m.t === 'notify') api.notify(m.m); else if (m.t === 'panel') savePanel(id, L.m.meta, m.p);
-        else if (m.t === 'call') { const fn = { price: api.price, buy: api.buy, sell: api.sell, call: api.call, position: api.position, spentToday: api.spentToday, fetchJson: readData, read: readChain, balances: readBal }[m.name]; let v, err; try { if (!fn) throw new Error('没有这个功能'); v = await fn(...(Array.isArray(m.args) ? m.args.slice(0, 3) : [])); } catch (e) { err = e.message; } if (ch.connected) ch.send({ t: 'ret', id: m.id, v, err }); }
+        else if (m.t === 'call') { const fn = { price: api.price, ...(L.item.trades ? { buy: api.buy, sell: api.sell, call: api.call } : {}), position: api.position, spentToday: api.spentToday, fetchJson: readData, read: readChain, balances: readBal }[m.name]; /* 11/3：被判定只看不买的外挂，根本拿不到买卖功能 */ let v, err; try { if (!fn) throw new Error('没有这个功能'); v = await fn(...(Array.isArray(m.args) ? m.args.slice(0, 3) : [])); } catch (e) { err = e.message; } if (ch.connected) ch.send({ t: 'ret', id: m.id, v, err }); }
         else if (m.t === 'done') { clearTimeout(to); ch.off('message', on); if (m.state && typeof m.state === 'object') { st.state = m.state; } res(m.err || ''); } };
       ch.on('message', on); ch.send({ t: 'tick', id, settings: conf(), state: st.state }); });
     setInterval(async () => { if (busy || !conf().on) return; if (L.item.trades && ctx.walletBusy?.()) return; /* 只看不买的外挂（面板）不用等钱包空下来 */ busy = true; try { if (!H?.ch?.connected) { H = await spawnHost(join(PD, L.f)).catch(() => null); } const e = await runTick(); if (e) log(`[外挂 ${id}] ${e}`); save(); } catch (e) { log(`[外挂 ${id}] 出错：${e.message}`); } finally { busy = false; } }, every).unref();

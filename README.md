@@ -1,4 +1,4 @@
-# 罗宾猫哨兵（RobinCat Sentinel）v1.0.6
+# 罗宾猫哨兵（RobinCat Sentinel）v1.0.7
 
 > **✨ 你的 AI 工具由你做主**
 
@@ -258,6 +258,7 @@ npm install -g @binance/agentic-wallet
 git clone <本仓库>
 cd agentid-sniper
 copy config.example.json config.json   # macOS/Linux 用 cp
+cd radar && npm ci && cd ..           # 安装罗宾猫雷达桌面视窗（照 package-lock.json 锁定的版本装，防套件被下毒）
 ```
 
 编辑 `config.json`：
