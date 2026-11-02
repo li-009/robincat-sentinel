@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('radar', {
   snapshot: () => ipcRenderer.invoke('snapshot'),
   invReload: () => ipcRenderer.invoke('invReload'),
+  invCheck: (c) => ipcRenderer.invoke('invCheck', c),
   pools: (n) => ipcRenderer.invoke('pools', n),
   hotBoard: (n) => ipcRenderer.invoke('hotBoard', n),
   smartAuto: () => ipcRenderer.invoke('smartAuto'), airHot: (f) => ipcRenderer.invoke('airHot', f), airCheck: (u) => ipcRenderer.invoke('airCheck', u), airState: () => ipcRenderer.invoke('airState'), signals: () => ipcRenderer.invoke('signals'),
