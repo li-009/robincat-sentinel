@@ -1079,8 +1079,8 @@ async function drainCheck(c, valueWei, data = '') { if (Number(radarSet()['bsc.d
   if (!(BigInt(valueWei || 0) > 0n)) return '';
   S.drainC = S.drainC || {}; const k = S.drainC[c]; if (k && Date.now() - k.t < 60e3) return k.r; /* 網友 AI 建議 11/1：快取從 10 分鐘縮到 1 分鐘，打之前等於重查 */
   let tok = ''; const tr = await call(c, '0xfc0c546a'); if (tr && tr.length >= 66 && BigInt(tr.slice(0, 66)) > 0n) tok = '0x' + tr.slice(26, 66);
-  let bal = 0; for (const a of [c, tok].filter(Boolean)) bal += Number(BigInt((await rpc('eth_getBalance', [a, 'latest']).catch(() => '0x0')) || '0x0')) / 1e18;
-  if (bal < 0.01) { /* v2.7.8：有的合约收到 BNB 会换成 USDT／WBNB 存着，不是被转走；只多算这两种公认的币（假不了），门槛一样 0.01 BNB，其他安全规矩不动 */ const px = await bnbUsd().catch(() => 0) || S.lastBnbUsd || 0; for (const a of [c, tok].filter(Boolean)) { const wb = await call(WBNB, '0x70a08231' + wa(a)).catch(() => null); if (wb && wb.length >= 66) bal += Number(BigInt(wb.slice(0, 66))) / 1e18; const us = await call(USDT, '0x70a08231' + wa(a)).catch(() => null); if (us && us.length >= 66 && px > 50) bal += Number(BigInt(us.slice(0, 66))) / 1e18 / px; } }
+  let bal = 0; for (const a of [c] /* 11/2：钱流只看铸造合约，token() 可能被指到有钱的热门币 */) bal += Number(BigInt((await rpc('eth_getBalance', [a, 'latest']).catch(() => '0x0')) || '0x0')) / 1e18;
+  if (bal < 0.01) { /* v2.7.8：有的合约收到 BNB 会换成 USDT／WBNB 存着，不是被转走；只多算这两种公认的币（假不了），门槛一样 0.01 BNB，其他安全规矩不动 */ const px = await bnbUsd().catch(() => 0) || S.lastBnbUsd || 0; for (const a of [c].filter(Boolean)) { const wb = await call(WBNB, '0x70a08231' + wa(a)).catch(() => null); if (wb && wb.length >= 66) bal += Number(BigInt(wb.slice(0, 66))) / 1e18; const us = await call(USDT, '0x70a08231' + wa(a)).catch(() => null); if (us && us.length >= 66 && px > 50) bal += Number(BigInt(us.slice(0, 66))) / 1e18 / px; } }
   const pair = await call(FACTORY, '0xe6a43905' + wa(tok || c) + wa(WBNB)).catch(() => null); const hasPool = !!(pair && pair.length >= 66 && BigInt(pair.slice(0, 66)) > 0n);
   let r = bal < 0.01 && !hasPool ? `合約裡只剩 ${bal.toFixed(4)} BNB（含換成 USDT／WBNB 的部分），付的錢被轉走了（退款／開池可能是假的）` : '';
   if (false && !r && !hasPool) { /* 使用者 11/1 17:54：保本檢查不要這麼嚴，只保留「錢幾乎被轉光」這條 */ let sold = Number(S.paid?.[c]?._sold || 0); if (sold > 1e7) sold = 0; /* 份數才算，代幣數量（有 18 位小數）不算 */ const a1 = /^0x[0-9a-f]{8}([0-9a-f]{64})/i.exec(data || ''); let units = a1 ? Number(BigInt('0x' + a1[1])) : 1; if (!(units >= 1 && units <= 1000)) units = 1; const unitB = Number(valueWei) / 1e18 / units; const expect = sold * unitB; if (sold > 0 && expect > 0.05 && bal < expect * 0.5) r = `合約裡只有 ${bal.toFixed(3)} BNB，不到已賣出金額（約 ${expect.toFixed(3)} BNB）的一半，錢可能被轉走了`; }
@@ -1487,7 +1487,7 @@ async function heatOf(c, P) { // 算熱度：最近約 2.5 小時有幾個不同
   const last = new Map(), txb = new Map(); const skip = new Set([c, tok, '0x0000000000000000000000000000000000000000', '0x000000000000000000000000000000000000dead']);
   const span = P.heatAt ? 6000 : 20000; // 第一次看約 2.5 小時，之後只看最近約 45 分鐘（累計數取最大值）
   for (let b = head - span; b <= head; b += 10000) {
-    const q = [{ address: tok ? [c, tok] : c, fromBlock: '0x' + b.toString(16), toBlock: '0x' + Math.min(b + 9999, head).toString(16) }]; const L = await rpc('eth_getLogs', q).catch(() => logsRpc(q).catch(() => [])); /* 除錯 11/1：預設節點限流時改用多節點，熱度（參與人數）才算得準 */
+    const q = [{ address: c /* 11/2 用户回报：骗子把 token() 指到热门币，旧逻辑会把热门币的交易算成铸造人数 → 只看铸造合约本身 */, fromBlock: '0x' + b.toString(16), toBlock: '0x' + Math.min(b + 9999, head).toString(16) }]; const L = await rpc('eth_getLogs', q).catch(() => logsRpc(q).catch(() => [])); /* 除錯 11/1：預設節點限流時改用多節點，熱度（參與人數）才算得準 */
     for (const l of L || []) { if (!l.transactionHash) continue; const bn = parseInt(l.blockNumber, 16); if (!txb.has(l.transactionHash) || txb.get(l.transactionHash) < bn) txb.set(l.transactionHash, bn); }
   }
   /* 逆向防護 11/1：以前把鏈上紀錄裡出現的地址（包括「收到幣的人」）都算成參與者，項目方空投給 150 個 Agent ID 錢包就能灌熱度；改成只算「自己送出交易、付 gas 的錢包」 */
@@ -1550,7 +1550,7 @@ async function repeatDevOk(dep, c, P) {
   const others = ((S.devs || {})[dep] || []).filter((x) => x.c !== c);
   if (others.some((x) => devKey(x) === mine)) return '同名重新部署';
   for (const x of others) { // 他之前的項目有沒有正常開盤（池子還有錢、沒被抽走）
-    let tk = x.c; const tr = await call(x.c, '0xfc0c546a'); if (tr && tr.length >= 66 && BigInt(tr.slice(0, 66)) > 0n) tk = '0x' + tr.slice(26, 66);
+    let tk = x.c; /* 11/2：不信 token()，免得骗子把它指到热门币来洗白 */
     for (const q of [WBNB, USDT]) { const pr = await call(FACTORY, '0xe6a43905' + wa(tk) + wa(q)); if (!pr || !(BigInt(pr) > 0n)) continue; const rs = await call('0x' + pr.slice(26), '0x0902f1ac'); if (rs && BigInt('0x' + rs.slice(2, 66)) > 0n && BigInt('0x' + rs.slice(66, 130)) > 0n) return '之前有項目正常開盤'; }
   }
   return '';
@@ -1562,7 +1562,7 @@ async function paidLoop(mode = 'all', shard = null) {
   S.paid = S.paid || {}; S.dyn = S.dyn || []; S.paidSpend = S.paidSpend || {};
   if (S.missed && !S.missedClean1) { S.missedClean1 = 1; for (const [k, m] of Object.entries(S.missed)) if (String(m.why || '').includes('保本')) delete S.missed[k]; } /* 照規則不打的不算錯過 */
   if (S.progFixV !== 1) { S.progFixV = 1; for (const P of Object.values(S.paid || {})) if ((P.progress || 0) >= 0.999 && !P.progAt) { delete P.progress; delete P.swLog; } } /* 除錯 11/1（牛來）：舊的進度算法把它讀成 100%，被當成賣完、不再回頭看；進度算法修正後重新讀一次 */
-  if (S.agentsV !== 3) { S.agentsV = 3; /* v2.8.1：排除小号后重新算 */ for (const P of Object.values(S.paid || {})) { delete P.agents; delete P.heatAt; } } /* 逆向防護 11/1：參與人數改成只算送出交易的錢包，舊的（可能被空投灌過的）數字清掉重算 */
+  if (S.agentsV !== 4) { S.agentsV = 4; /* 11/2：热度只看铸造合约，重算 */ /* v2.8.1：排除小号后重新算 */ for (const P of Object.values(S.paid || {})) { delete P.agents; delete P.heatAt; } } /* 逆向防護 11/1：參與人數改成只算送出交易的錢包，舊的（可能被空投灌過的）數字清掉重算 */
   if (S.refundReset !== 1) { S.refundReset = 1; for (const P of Object.values(S.paid)) { delete P.refundOk; delete P.noRefundLog; } } /* 除錯 11/1：代理合約解析修正後，重新判斷一次有沒有退款機制 */
   const today = new Date().toDateString(); if (S.paidSpend.day !== today) S.paidSpend = { day: today };
   let price = 0;
@@ -1790,7 +1790,7 @@ async function paidLoop(mode = 'all', shard = null) {
             if (!mine.some((b) => Number(b.change) > 0)) return '模擬沒拿到代幣'; return '';
           }, async () => { const q2 = await call(c, '0x68bce8cd' + w(n)); const c2 = q2 ? BigInt(q2.slice(0, 66)) : 0n; return c2 > (costWei * 105n) / 100n ? '價格剛剛漲了超過 5%' : ''; }); /* 新功能：送出前再查一次價格 */
           S.paidSpend[W.name] = spent + vb; P.done[W.name] = 'minted';
-          const usd = vb * price; const tka = tokAddr && !/^0x0{40}$/i.test(tokAddr) ? tokAddr : tokAddr0; if (!tka) trackFromSim(W, r.sim, sym, usd); /* 審查 11/1：合約沒有 token() 時以前不會加入持倉，賣出規則都不會跑 */ if (tka && !S.dyn.some((x) => x.addr === tka.toLowerCase() && x.only === W.addr)) S.dyn.push({ sym, addr: tka.toLowerCase(), cost: +usd.toFixed(2), only: W.addr, deployer: P.deployer, boughtAt: Date.now(), ...(FORCE.has(c) ? { hold: true } : {}) }); // 使用者指定的項目照免費幣處理：只通知不自動賣
+          const usd = vb * price; const tka0 = tokAddr && !/^0x0{40}$/i.test(tokAddr) ? tokAddr : tokAddr0; const got = (r.sim?.balanceChanges || []).some((x) => String(x.owner).toLowerCase() === W.addr && Number(x.change) > 0 && String(x.contractAddress || '').toLowerCase() === String(tka0 || '').toLowerCase()); const tka = tka0 && got ? tka0 : ''; if (!tka) trackFromSim(W, r.sim, sym, usd); /* 11/2 用户回报：token() 可能被指到别的币 → 只有模拟真的会收到那个币才照它追踪，否则照模拟实际到账 */ /* 審查 11/1：合約沒有 token() 時以前不會加入持倉，賣出規則都不會跑 */ if (tka && !S.dyn.some((x) => x.addr === tka.toLowerCase() && x.only === W.addr)) S.dyn.push({ sym, addr: tka.toLowerCase(), cost: +usd.toFixed(2), only: W.addr, deployer: P.deployer, boughtAt: Date.now(), ...(FORCE.has(c) ? { hold: true } : {}) }); // 使用者指定的項目照免費幣處理：只通知不自動賣
           addPaidUsd(W, usd);
           await tg(`🛒 [${W.name}] 自動打了付費 Agent ID 項目：${sym}${grpTxt(c)}\n${n} 份，花 ${vb.toFixed(4)} BNB（約 ${usd.toFixed(1)}U）· 已售 ${sold ?? '?'} 份 · 進度約 ${Math.round(progress * 100)}%\n${c}\n交易 ${r.tx}\n已加入監控：${ruleTxt()}`);
         } else {
