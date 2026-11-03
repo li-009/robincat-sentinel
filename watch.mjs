@@ -1657,7 +1657,7 @@ async function agcIndex(W, st) { /* 第一次：往回找这个钱包以前挖�
   ev.sort((a, b) => a.blk - b.blk); st.mints = ev.map((e, i) => ({ i, at: Date.now() - (head - e.blk) * bps * 1000, old: 1, claimed: 0 })); st.idxDone = 1; save(); /* 以前自己手动挖的：不知道领了没，交给预演判断 */
 }
 async function agcDaily() {
-  const z = radarSet(); const mineOn = Number(z['agc.auto']) === 1 && !radarOff(); const hasLocked = Object.values(S.agc || {}).some((st) => (st.mints || []).some((m) => !m.claimed)); if (!mineOn && !hasLocked) return; S.agc = S.agc || {}; const day = new Date().toISOString().slice(0, 10); /* 合约 UTC 0 点重置 */ /* 她 11/3：关掉挖矿或紧急全停，已经押的 BNB 照样到期领回，只是不再押新的 */
+  const z = radarSet(); const mineOn = false; /* 11/3 她：AGC 在谈合作，先从工具拿掉 — 不再挖新的；之前押着的 BNB 照样到期自动领回 */ const hasLocked = Object.values(S.agc || {}).some((st) => (st.mints || []).some((m) => !m.claimed)); if (!mineOn && !hasLocked) return; S.agc = S.agc || {}; const day = new Date().toISOString().slice(0, 10); /* 合约 UTC 0 点重置 */ /* 她 11/3：关掉挖矿或紧急全停，已经押的 BNB 照样到期领回，只是不再押新的 */
   const maxN = Math.max(1, Math.min(20, Math.round(+z['agc.maxShares'] || 5)));
   for (const W of WALLETS) {
     const st = (S.agc[W.addr] = S.agc[W.addr] || { mints: [], day: '' }); try { await agcIndex(W, st); } catch (e) { log(`[AGC][${W.name}] ${e.message}`); continue; }
@@ -2229,7 +2229,7 @@ async function manualMints() {
 }
 // ── TG 指令：使用者直接在機器人打「賣 XXX」「賣 XXX 一半」「餘額」，幾秒內執行，不經過 Claude ──
 // ── 更新提醒（開源版才開；使用者 11/1 00:47：不自動更新，只提醒；用戶回 /update 才更新，更新前安檢＋sha256＋備份，新版起不來自動換回）──
-const UPD = { on: true, ver: '1.0.15', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
+const UPD = { on: true, ver: '1.0.16', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function updCheck(quiet = false) {
   if (!UPD.on) return null;
@@ -2260,6 +2260,8 @@ async function doUpdateAll(v) {
   const tmpD = join(DIR, 'data', 'update_tmp'); mkdirSync(tmpD, { recursive: true });
   for (const [f, b] of got) if (/\.(mjs|cjs|js)$/.test(f)) { const t = join(tmpD, f.replace(/[\/]/g, '_')); writeFileSync(t, b); const bad = await new Promise((res) => execFile(process.execPath, ['--check', t], { windowsHide: true, timeout: 60000 }, (e, o, er) => res(e ? String(er || e.message) : ''))); try { unlinkSync(t); } catch {} if (bad) return `⛔ 新版 ${f} 语法检查没过，已取消（还没改动任何档案）`; }
   const bkName = 'update_backup_' + new Date().toISOString().slice(0, 16).replace(/[:T-]/g, ''); const bk = join(DIR, 'data', bkName); mkdirSync(bk, { recursive: true });
+  /* 11/3 #46：用户自己（或叫 AI）改过的官方档案 → 跟旧版官方签名清单比对找出来，备份后写一份「我的改动」说明，更新完叫用户的 AI 照备份把改动合并回去 */
+  let mine = []; try { const OLD = JSON.parse(readFileSync(join(DIR, 'radar', 'official.json'), 'utf8')).files || {}; mine = got.map(([f]) => f).filter((f) => { if (!OLD[f]) return false; try { return createHash('sha256').update(readFileSync(join(DIR, f))).digest('hex') !== OLD[f]; } catch { return false; } }); } catch {}
   for (const [f] of got) { const src = join(DIR, f); if (existsSync(src)) { mkdirSync(dirname(join(bk, f)), { recursive: true }); copyFileSync(src, join(bk, f)); } }
   for (const [f, b] of got) { mkdirSync(dirname(join(DIR, f)), { recursive: true }); writeFileSync(join(DIR, f), b); }
   try { writeFileSync(join(DIR, 'data', 'update_pending.json'), JSON.stringify({ at: Date.now(), v: v.version, bk: bkName, files: got.map(([f]) => f) })); } catch {} /* 她 11/3：新版启动不正常 → 雷达自动换回旧版 */
@@ -2267,7 +2269,8 @@ async function doUpdateAll(v) {
   const shell = got.some(([f]) => /^radar\/[^\/]+\.cjs$/.test(f)), ui = got.some(([f]) => f.startsWith('radar/'));
   if (shell || ui) writeFileSync(join(DIR, 'data', shell ? 'relaunch.req' : 'reload.req'), String(Date.now()));
   log(`一键更新：已换上 ${got.length} 个档案（v${v.version}），旧档备份在 data/${bkName}`);
-  return `✅ 已更新到 v${v.version}（${got.length} 个档案，设定都保留）。${shell ? '雷达会自动重开一次。' : ''}引擎会自动重启载入。`;
+  if (mine.length) { try { writeFileSync(join(DIR, 'data', 'my_changes.md'), `# 更新前你改过的档案（v${v.version}，${new Date().toLocaleString()}）\n\n更新时这些档案被换成官方新版，你原本改过的版本完整备份在 data/${bkName}/ 里：\n\n${mine.map((f) => `- ${f}  →  data/${bkName}/${f}`).join('\n')}\n\n## 把改动加回去\n把下面这段贴给你的 AI（Claude Code／Codex／Cursor）：\n\n> 罗宾猫雷达刚更新到 v${v.version}。请先读 AI说明书.md，再比对 data/${bkName}/ 里我改过的旧档和现在的新档，只把「我自己加的功能／改的设定」用同样的方式加回新档，官方新版的修正都要保留；不准碰私钥、不准转钱；改完执行 node --check 确认能跑，然后告诉我改了什么。\n`); } catch {} }
+  return `✅ 已更新到 v${v.version}（${got.length} 个档案，设定都保留）。${shell ? '雷达会自动重开一次。' : ''}引擎会自动重启载入。${mine.length ? `\n\n✋ 你（或你的 AI）改过 ${mine.length} 个档案：${mine.slice(0, 5).join('、')}${mine.length > 5 ? ' 等' : ''}。改过的旧档都备份在 data/${bkName}，要把你的改动加回来：打开 data/my_changes.md，把里面那段贴给你的 AI 就好。` : ''}`;
 }
 async function doUpdate() {
   if (!UPD.on) return '這個版本不自動更新';

@@ -22,11 +22,6 @@
    "en": "BNB Chain · NFT mints"
   },
   {
-   "id": "agc",
-   "zh": "BNB Chain · AGC 免费挖",
-   "en": "BNB Chain · AGC free mining"
-  },
-  {
    "id": "sell",
    "zh": "BNB Chain · 卖出策略",
    "en": "BNB Chain · Sell strategy"
@@ -1237,31 +1232,6 @@
    "dzh": "「信号」页的喊单频道提过这个币才买",
    "den": "Only if a call channel on the Signals page mentioned it",
    "sug": 0
-  },
-  {
-   "k": "agc.auto",
-   "g": "agc",
-   "type": "bool",
-   "def": 0,
-   "min": 0,
-   "max": 1,
-   "zh": "每天自动免费挖 AGC",
-   "en": "Auto free-mine AGC daily",
-   "dzh": "预设关。agcc.fun 的「A 免费挖」：每份押 0.002 BNB，24 小时后雷达自动领回 BNB＋AGC。要有 Agent ID。不做入池挖",
-   "den": "Off by default. agcc.fun “A free mining”: 0.002 BNB per share is locked and refunded after 24 h, when the radar claims your BNB + AGC. Needs an Agent ID. Pool mining is never used"
-  },
-  {
-   "k": "agc.maxShares",
-   "g": "agc",
-   "def": 5,
-   "min": 1,
-   "max": 20,
-   "unit": "份",
-   "uen": "shares",
-   "zh": "每天最多挖几份",
-   "en": "Max shares per day",
-   "dzh": "每个钱包每天最多押几份（每份 0.002 BNB）；合约自己有额度，超过的会自动挖少一点",
-   "den": "Per wallet per day (0.002 BNB each); the contract has its own quota and the radar steps down automatically"
   }
  ]
 }
