@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="罗宾猫雷达">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>罗宾猫雷达</title>
+<style>
+:root{--bg:#0b0d11;--card:#14171d;--line:#232833;--ink:#e8ebf0;--mute:#8a93a3;--green:#22c55e;--red:#ef4444;--yel:#f0b90b;--blue:#60a5fa}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+header{position:sticky;top:0;z-index:5;background:rgba(11,13,17,.94);backdrop-filter:blur(8px);padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.brand{flex:1;min-width:0;display:flex;align-items:center;gap:9px}.brand b{font-weight:800;font-size:17px;white-space:nowrap;display:block}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mute);flex:none}
+.dot.on{background:var(--green);box-shadow:0 0 0 4px rgba(34,197,94,.18)}
+.pc{font-size:12px;color:var(--mute);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.stopB{background:#3a1416;color:#ff9b9b;border:1px solid #6b2226;border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px}
+.stopB.on{background:var(--red);color:#fff;border-color:var(--red)}
+main{padding:12px 12px calc(env(safe-area-inset-bottom) + 84px)}
+nav.tab{position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(16,18,23,.97);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.tab button{padding:10px 0 9px;font-size:12px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.tab button b{font-size:19px;line-height:1}
+nav.tab button.on{color:var(--ink)}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:10px}
+.seg button{flex:1;padding:8px 4px;border-radius:9px;font-size:13.5px;color:var(--mute);font-weight:600}
+.seg button.on{background:#232833;color:var(--ink)}
+.row{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:7px}
+.row .nm{flex:1;min-width:0}
+.row .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .nm small{color:var(--mute);font-size:12px}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+.num small{display:block;color:var(--mute);font-size:11.5px}
+.up{color:var(--green)}.dn{color:var(--red)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:#232833;color:var(--mute);margin-left:4px;vertical-align:1px}
+.tag.y{background:#3a2f0b;color:var(--yel)}.tag.r{background:#3a1416;color:#ff9b9b}.tag.g{background:#0f2f1c;color:#7ee2a0}
+.empty{color:var(--mute);text-align:center;padding:40px 10px;font-size:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;border-radius:11px;font-weight:700;background:#232833}
+.btn.y{background:var(--yel);color:#111}.btn.r{background:#3a1416;color:#ff9b9b}.btn.g{background:#0f2f1c;color:#7ee2a0}
+.btn:disabled{opacity:.45}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:none;align-items:flex-end}
+.sheet.on{display:flex}
+.sheet>div{width:100%;max-height:88vh;overflow:auto;background:#12151b;border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 18px)}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.kv div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--mute)}
+.kv b{display:block;color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--mute);margin:8px 0}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 92px);transform:translateX(-50%);background:#232833;color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:88vw;display:none;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.pair{max-width:420px;margin:12vh auto 0;text-align:center;padding:0 18px}
+.pair h1{font-size:22px;margin:16px 0 8px}
+.pair p{color:var(--mute);line-height:1.7}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+.card h4{margin:0 0 8px;font-size:15px}
+input.amt{width:100%;background:#0b0d11;border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:9px;font:inherit;text-align:center}
+.warnbar{background:#3a1416;color:#ffb4b4;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px;display:none}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;color:var(--mute)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="sheet" id="sh" onclick="if(event.target===this)closeSheet()"><div id="shb"></div></div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+/* ── 加密：金钥只在 QR 码（网址 # 后面，不会送到伺服器）和这台手机上 ── */
+const b64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const ub64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+let KEY = null, ROOM = '', WS = null, PC_ON = false, ST = null, BOARD = {}, TAB = 'board', NET = 'bsc', COL = 0, seq = 0, retry = 0;
+const PEND = new Map(), SEEN = new Map();
+async function setup(raw) {
+  KEY = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('rcr1:' + b64u(raw)));
+  ROOM = b64u(h).slice(0, 32);
+}
+async function enc(o) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, KEY, new TextEncoder().encode(JSON.stringify(o))); return JSON.stringify({ e: b64u(iv) + '.' + b64u(ct) }); }
+async function dec(s) { const [a, b] = String(s).split('.'); const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ub64u(a) }, KEY, ub64u(b)); return JSON.parse(new TextDecoder().decode(pt)); }
+function fresh(o) { const now = Date.now(); for (const [k, t] of SEEN) if (now - t > 600e3) SEEN.delete(k); if (!o || typeof o.t !== 'number' || Math.abs(now - o.t) > 300e3 || SEEN.has(o.n)) return false; SEEN.set(o.n, now); return true; }
+
+/* ── 连线 ── */
+function connect() {
+  if (WS && WS.readyState <= 1) return;
+  WS = new WebSocket(`${location.protocol === "http:" ? "ws" : "wss"}://${location.host}/ws/${ROOM}?r=ph`);
+  WS.onopen = () => { retry = 0; render(); };
+  WS.onmessage = async (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.sys) { if ('pc' in m.sys) { const was = PC_ON; PC_ON = !!m.sys.pc; if (PC_ON && !was) refresh(); render(); } return; }
+    if (!m.e) return; let o; try { o = await dec(m.e); } catch { return; } // 不是用我们的金钥加密的 → 丢掉
+    if (o.f !== 'pc' || !fresh(o)) return;
+    if (o.ty === 'res' && PEND.has(o.id)) { const p = PEND.get(o.id); PEND.delete(o.id); clearTimeout(p.to); o.err ? p.no(new Error(o.err)) : p.ok(o.d); }
+    if (o.ty === 'push' && o.m === 'state') { ST = o.d; render(); }
+  };
+  WS.onclose = (ev) => { PC_ON = false; render(); if (ev.code === 4001) { toast('这个配对已经有 3 台手机在用，最早的那台被挤掉了'); } setTimeout(connect, Math.min(15000, 1000 * 2 ** retry++)); };
+}
+setInterval(() => { if (WS?.readyState === 1) WS.send('ping'); }, 25000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { connect(); refresh(); } });
+async function req(m, a = {}, ms = 25000) {
+  if (!WS || WS.readyState !== 1) throw new Error('还没连上转接站');
+  if (!PC_ON) throw new Error('电脑雷达没在线（电脑要开着、雷达要在跑）');
+  const id = ++seq + '.' + Date.now();
+  const p = new Promise((ok, no) => PEND.set(id, { ok, no, to: setTimeout(() => { PEND.delete(id); no(new Error('电脑没有回应，等一下再试')); }, ms) }));
+  WS.send(await enc({ f: 'ph', ty: 'req', id, m, a, t: Date.now(), n: crypto.randomUUID() }));
+  return p;
+}
+
+/* ── 小工具 ── */
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const usd = (v) => v == null || !isFinite(v) ? '-' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
+const ago = (m) => m == null ? '' : m < 60 ? m + ' 分钟' : m < 1440 ? Math.round(m / 60) + ' 小时' : Math.round(m / 1440) + ' 天';
+function toast(t, ms = 2600) { const el = $('#toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => (el.style.display = 'none'), ms); }
+function openSheet(html) { $('#shb').innerHTML = html; $('#sh').classList.add('on'); }
+function closeSheet() { $('#sh').classList.remove('on'); }
+function confirmBox(title, body, okTxt, cls = 'y') {
+  return new Promise((res) => { openSheet(`<h3>${esc(title)}</h3><p class="note" style="font-size:14px;color:var(--ink);white-space:pre-line">${esc(body)}</p><div class="grid3" style="grid-template-columns:1fr 1fr;margin-top:14px"><button class="btn" id="cNo">取消</button><button class="btn ${cls}" id="cOk">${esc(okTxt)}</button></div>`); $('#cNo').onclick = () => { closeSheet(); res(false); }; $('#cOk').onclick = () => { closeSheet(); res(true); }; });
+}
+
+/* ── 画面 ── */
+function render() {
+  const app = $('#app');
+  if (!KEY) { app.innerHTML = `<div class="pair"><svg width="84" height="84" viewBox="0 0 192 192"><circle cx="96" cy="96" r="70" fill="none" stroke="#22c55e" stroke-width="6" opacity=".55"/><circle cx="96" cy="96" r="44" fill="none" stroke="#22c55e" stroke-width="5"/><path d="M96 96 L150 52" stroke="#22c55e" stroke-width="7" stroke-linecap="round"/><circle cx="96" cy="96" r="9" fill="#f0b90b"/></svg><h1>连结你的罗宾猫雷达</h1><p>在电脑雷达点「📱 连结手机」，<br>用这支手机的相机扫画面上的 QR 码。</p><p style="font-size:13px">钱包和私钥一直留在你的电脑里。<br>手机和电脑之间的讯息全程加密，转接站看不到内容。</p></div>`; return; }
+  const stop = !!ST?.estop;
+  app.innerHTML = `<header><div class="brand"><span class="dot ${PC_ON ? 'on' : ''}"></span><div style="min-width:0"><b>罗宾猫雷达</b><span class="pc">${PC_ON ? esc(ST?.run || '电脑在线') : (WS?.readyState === 1 ? '电脑离线' : '连线中…')}</span></div></div><button class="stopB ${stop ? 'on' : ''}" id="stopB">${stop ? '🛑 已全停' : '🛑 紧急全停'}</button></header>
+  <main><div class="warnbar" id="wb"></div><div id="pg"></div></main>
+  <nav class="tab"><button data-t="board" class="${TAB === 'board' ? 'on' : ''}"><b>📡</b>看盘</button><button data-t="hold" class="${TAB === 'hold' ? 'on' : ''}"><b>💼</b>持仓</button><button data-t="me" class="${TAB === 'me' ? 'on' : ''}"><b>⚙️</b>设定</button></nav>`;
+  document.querySelectorAll('nav.tab button').forEach((b) => (b.onclick = () => { TAB = b.dataset.t; render(); if (TAB === 'board') loadBoard(); }));
+  $('#stopB').onclick = onStop;
+  const wb = $('#wb'); const off = (ST?.wallets || []).filter((w) => w.off).map((w) => w.name);
+  if (!PC_ON) { wb.style.display = 'block'; wb.textContent = '电脑雷达没在线：电脑要开着、雷达要在跑。连上后会自动更新。'; }
+  else if (stop) { wb.style.display = 'block'; wb.textContent = '紧急全停中：所有买入都关了，只能卖。要重新打开，请回电脑雷达重新设定。'; }
+  else if (off.length) { wb.style.display = 'block'; wb.textContent = '钱包已断开：' + off.join('、') + '（这个钱包不能买卖，回电脑重新连接）'; }
+  if (TAB === 'board') pgBoard(); else if (TAB === 'hold') pgHold(); else pgMe();
+}
+function pgBoard() {
+  const B = BOARD[NET]; const cols = B?.cols || [];
+  $('#pg').innerHTML = `<div class="seg" id="net"><button data-n="bsc" class="${NET === 'bsc' ? 'on' : ''}">BNB Chain</button><button data-n="rh" class="${NET === 'rh' ? 'on' : ''}">Robinhood</button></div>
+  ${cols.length ? `<div class="seg" id="col">${cols.map((c, i) => `<button data-i="${i}" class="${i === COL ? 'on' : ''}">${esc(c.t)} <small>${c.items.length}</small></button>`).join('')}</div>` : ''}
+  <div id="list">${!B ? '<div class="empty">读取中…</div>' : B.err ? `<div class="empty">${esc(B.err)}</div>` : (cols[COL]?.items || []).map(rowTok).join('') || '<div class="empty">这一栏现在没有币</div>'}</div>`;
+  document.querySelectorAll('#net button').forEach((b) => (b.onclick = () => { NET = b.dataset.n; COL = 0; render(); loadBoard(); }));
+  document.querySelectorAll('#col button').forEach((b) => (b.onclick = () => { COL = +b.dataset.i; render(); }));
+  document.querySelectorAll('[data-c]').forEach((r) => (r.onclick = () => openTok(r.dataset.c, r.dataset.s)));
+}
+function rowTok(x) {
+  const ch = x.h1 == null ? '' : `<small class="${x.h1 >= 0 ? 'up' : 'dn'}">${x.h1 >= 0 ? '+' : ''}${(+x.h1).toFixed(1)}%</small>`;
+  return `<div class="row" data-c="${esc(x.c)}" data-s="${esc(x.sym)}"><div class="nm"><b>${esc(x.sym || '?')}${x.prog != null ? `<span class="tag y">${Math.round(x.prog)}%</span>` : ''}${x.tag ? `<span class="tag ${x.tagc || ''}">${esc(x.tag)}</span>` : ''}</b><small>${x.age != null ? ago(x.age) + ' · ' : ''}1h 买 ${x.b || 0} / 卖 ${x.s || 0}</small></div><div class="num">市值 ${usd(x.mc)}${ch}</div></div>`;
+}
+async function loadBoard() { if (!PC_ON) return; const n = NET; try { const d = await req('board', { net: n }); BOARD[n] = d; } catch (e) { BOARD[n] = { err: e.message }; } if (TAB === 'board' && NET === n) render(); }
+async function openTok(c, sym) {
+  openSheet(`<h3>${esc(sym || '…')}</h3><div class="mono">${esc(c)}</div><div class="empty">读取中…</div>`);
+  let d = {}; try { d = await req('detail', { net: NET, c }); } catch (e) { d = { err: e.message }; }
+  const Q = ST?.qb?.[NET] || null; const stop = !!ST?.estop || !!ST?.mOff; const nW = ST?.qbW?.[NET] || 1;
+  $('#shb').innerHTML = `<h3>${esc(d.sym || sym || '?')} <small style="color:var(--mute);font-weight:500;font-size:13px">${NET === 'bsc' ? 'BNB Chain' : 'Robinhood'}</small></h3><div class="mono">${esc(c)}</div>
+   ${d.err ? `<p class="note">${esc(d.err)}</p>` : `<div class="kv"><div>价格<b>${d.price != null ? '$' + usd(d.price) : '-'}</b></div><div>市值<b>${usd(d.mc)}</b></div><div>池子<b>${usd(d.liq)}</b></div><div>1 小时<b class="${(d.h1 || 0) >= 0 ? 'up' : 'dn'}">${d.h1 == null ? '-' : (d.h1 >= 0 ? '+' : '') + (+d.h1).toFixed(1) + '%'}</b></div></div>${(d.risk || []).length ? `<p class="note" style="color:#ffb4b4">⚠️ ${d.risk.map(esc).join('、')}</p>` : ''}`}
+   ${stop ? `<p class="note" style="color:#ff9b9b">${ST?.estop ? '紧急全停中，不能买' : '「手动买卖」没打开，不能买'}</p>` : !Q || !(Q.v || []).some((v) => +v > 0) ? `<p class="note">先在电脑雷达的「⚡ 快速买卖设定」设好一键买金额。</p>` : `<p class="note">一键买（金额照电脑的「⚡ 快速买卖设定」${nW > 1 ? `，${nW} 个钱包各买一次` : ''}），会先过安全检查，结果看 TG。</p><div class="grid3">${Q.v.map((v, k) => +v > 0 ? `<button class="btn y" data-b="${k}">买 ${esc(v)} ${esc(Q.u)}</button>` : '').join('')}</div>`}`;
+  document.querySelectorAll('[data-b]').forEach((b) => (b.onclick = () => doBuy(c, d.sym || sym, +b.dataset.b)));
+}
+async function doBuy(c, sym, k) {
+  const Q = ST?.qb?.[NET]; const v = Q?.v?.[k]; const nW = ST?.qbW?.[NET] || 1;
+  if (!(await confirmBox('确定要买？', `${sym || c.slice(0, 8)}（${NET === 'bsc' ? 'BNB Chain' : 'Robinhood'}）\n${nW > 1 ? `${nW} 个钱包各买 ${v} ${Q.u}，总共 ${+(v * nW).toFixed(6)} ${Q.u}` : `买 ${v} ${Q.u}`}\n雷达会先做安全检查，过了才买。新池子风险高。`, '确定买'))) return;
+  try { const r = await req('buy', { net: NET, c, k, name: sym || '' }); toast(r?.msg || '已送出，结果看 TG'); } catch (e) { toast('❌ ' + e.message, 4000); }
+}
+function pgHold() {
+  const H = ST?.hold || [];
+  $('#pg').innerHTML = H.length ? H.map((h, i) => `<div class="row" style="flex-wrap:wrap"><div class="nm"><b>${esc(h.sym || '?')}<span class="tag">${h.ch === 'rh' ? 'Robinhood' : 'BNB'}</span>${h.auto ? '<span class="tag g">自动卖</span>' : ''}</b><small>${(h.ws || []).length ? esc(h.ws.join('、')) + ' · ' : ''}${h.cost ? '成本 ' + usd(h.cost) + 'U' : ''}${h.x ? ' · ' + h.x.toFixed(2) + ' 倍' : ''}</small></div><div class="num">${h.val == null ? '还没开池' : '约 ' + usd(h.val) + 'U'}</div><div class="grid3" style="width:100%;margin-top:8px"><button class="btn r" data-sl="${i}" data-p="25">卖 25%</button><button class="btn r" data-sl="${i}" data-p="50">卖 50%</button><button class="btn r" data-sl="${i}" data-p="100">全卖</button></div></div>`).join('') : `<div class="empty">${PC_ON ? '目前没有持仓' : '电脑雷达没在线'}</div>`;
+  document.querySelectorAll('[data-sl]').forEach((b) => (b.onclick = async () => { const h = H[+b.dataset.sl]; const p = +b.dataset.p; if (!(await confirmBox('确定要卖？', `${h.sym}\n卖 ${p >= 100 ? '全部' : p + '%'}${(h.ws || []).length > 1 ? '（' + h.ws.length + ' 个钱包一起卖）' : ''}`, '确定卖', 'r'))) return; try { const r = await req('sell', { c: h.c, pct: p, ch: h.ch, name: h.sym }); toast(r?.msg || '已送出卖单，结果看 TG'); } catch (e) { toast('❌ ' + e.message, 4000); } }));
+}
+function pgMe() {
+  $('#pg').innerHTML = `<div class="card"><h4>一键买金额</h4><p class="note">照电脑雷达的「⚡ 快速买卖设定」，手机不能改——就算手机掉了，别人也没办法用它买超过你设的金额。<br>BNB Chain：${esc((ST?.qb?.bsc?.v || []).filter((v) => +v > 0).join(' / ') || '没设')} ${esc(ST?.qb?.bsc?.u || '')}<br>Robinhood：${esc((ST?.qb?.rh?.v || []).filter((v) => +v > 0).join(' / ') || '没设')} ${esc(ST?.qb?.rh?.u || '')}</p></div>
+  <div class="card"><h4>加到主画面</h4><p class="note">iPhone：Safari 下方「分享」→「加入主画面」。<br>Android：Chrome 右上角「⋮」→「加到主画面」。<br>加好之后从主画面的罗宾猫图标打开就好。</p></div>
+  <div class="card"><h4>这支手机</h4><p class="note">电脑雷达 ${esc(ST?.ver ? 'v' + ST.ver : '')} · ${PC_ON ? '在线' : '离线'}<br>手机遗失：回电脑雷达按「解除旧手机」，这支手机就再也连不上。</p><button class="btn r" id="unp" style="width:100%">这支手机取消配对</button></div>`;
+  $('#unp').onclick = async () => { if (!(await confirmBox('取消配对？', '这支手机会忘记配对，要用的话要回电脑重新扫 QR 码。', '取消配对', 'r'))) return; try { localStorage.removeItem('rcKey'); } catch {} location.replace('/#'); };
+}
+async function onStop() {
+  if (ST?.estop) return toast('已经是紧急全停。要重新打开，请回电脑雷达重新设定。', 4000);
+  if (!(await confirmBox('🛑 确定紧急全停？', '全停后所有买入都关闭：自动买、手动买、强制打、挖矿、TG 买。\n持仓有设止盈止损的会照设定继续卖。\n要重新打开，必须回电脑雷达重新设定。', '确定全停', 'r'))) return;
+  try { const r = await req('estop', {}); toast(r?.msg || '已紧急全停'); refresh(); } catch (e) { toast('❌ ' + e.message, 4000); }
+}
+async function refresh() { if (!PC_ON) return; try { ST = await req('state'); render(); } catch {} if (TAB === 'board') loadBoard(); }
+setInterval(() => { if (!document.hidden) refresh(); }, 20000);
+
+/* ── 启动：QR 码带来的金钥存进这支手机，然后从网址拿掉 ── */
+(async () => {
+  try {
+    const m = location.hash.match(/k=([A-Za-z0-9_-]{43})/);
+    if (m) localStorage.setItem('rcKey', m[1]); /* 网址里的 # 留着：iPhone「加入主画面」后是另一个储存空间，要靠网址带金钥 */
+    const k = localStorage.getItem('rcKey');
+    if (k) { await setup(ub64u(k)); connect(); }
+  } catch (e) { toast('配对资料坏了，请重新扫 QR 码'); try { localStorage.removeItem('rcKey'); } catch {} }
+  render();
+})();
+</script>
+</body>
+</html>

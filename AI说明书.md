@@ -128,6 +128,7 @@ export async function tick(api) { /* 每 everySec 秒执行一次 */ }
 | `api.fetchJson(网址)` | 读公开行情资料（只读）。只能读这些网站：api.dexscreener.com、api.geckoterminal.com、api.coingecko.com、api.binance.com、data-api.binance.vision、api.honeypot.is、api.llama.fi、coins.llama.fi |
 | `api.read(合约, 资料, 链)` | 读链上资料（eth_call，只读，不能送交易）。链填 56＝BSC、4663＝Robinhood |
 | `api.balances()` | 读雷达每分钟更新的钱包余额（每个钱包在 BSC 的 BNB／USDT／USDC、在 Robinhood 的 ETH，还有 BNB、ETH 价格）；只有公开地址和余额 |
+| `api.projects()` | 读雷达正在看的 AI 铸造项目（最近 3 天，最多 150 个）：`contract` 合约、`name` 名称、`progress` 进度 %（读不到是 null）、`aiWallets` 在打的 AI 钱包数、`foundAt` 发现时间、`verdict` 雷达的判断（例如为什么不打）、`token` 代币地址、`source` 从哪个网站找到、`minted` 是否已经打过。只读 |
 | `api.panel({ title, items })` | 把资料交给雷达，显示在「✨ AI 加功能 → 我的面板」（见下面） |
 
 **外挂的规矩（违反就不会载入）**：

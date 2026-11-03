@@ -10,7 +10,7 @@ process.on('message', async (m) => {
   if (m.t === 'tick') {
     const state = m.state || {}; const S = m.settings || {};
     const api = Object.freeze({ id: m.id, state, settings: () => ({ ...S }), log: (x) => process.send({ t: 'log', m: String(x).slice(0, 300) }), notify: (x) => process.send({ t: 'notify', m: String(x).slice(0, 500) }), panel: (x) => { try { const j = JSON.stringify(x); if (j.length < 200000) process.send({ t: 'panel', p: JSON.parse(j) }); } catch {} },
-      price: (t) => call('price', [t]), fetchJson: (u) => call('fetchJson', [u]), balances: () => call('balances', []), read: (to, d, ch) => call('read', [to, d, ch]), buy: (t, u) => call('buy', [t, u]), sell: (t, q) => call('sell', [t, q]), call: (to, data, v, ch) => call('call', [to, data, v, ch]), position: (t) => call('position', [t]), spentToday: () => call('spentToday', []) });
+      price: (t) => call('price', [t]), fetchJson: (u) => call('fetchJson', [u]), balances: () => call('balances', []), projects: () => call('projects', []), read: (to, d, ch) => call('read', [to, d, ch]), buy: (t, u) => call('buy', [t, u]), sell: (t, q) => call('sell', [t, q]), call: (to, data, v, ch) => call('call', [to, data, v, ch]), position: (t) => call('position', [t]), spentToday: () => call('spentToday', []) });
     try { await mod.tick(api); process.send({ t: 'done', state }); } catch (e) { process.send({ t: 'done', state, err: String(e?.message || e).slice(0, 200) }); }
   }
 });
