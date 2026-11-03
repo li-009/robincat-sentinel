@@ -1898,6 +1898,7 @@ async function paidLoop(mode = 'all', shard = null) {
     if (gate && !forced) { const cs = globalThis.CUSTOM_SKIP?.({ chain: 'bsc', type: 'mint', c, name: P.name || '', progress, agents: P.agents || 0 }); if (cs) { if (P.customWhy !== cs) { P.customWhy = cs; P.lastReason = '自订规则不打：' + cs; log(`${P.name || c} 自订规则不打：${cs}`); } continue; } }
     if (gate && ESTOP()) { if (!P.estopLogged) { P.estopLogged = 1; log(`${P.name || c} 符合条件，但紧急全停中，不打（强制打也不打）`); } continue; }
     if (forced && (remoteKill() || CONFL || MANUAL_OFF())) { const why = remoteKill() ? '官方暂停所有买入中' : CONFL ? '另一个雷达正在用同一个钱包' : '「手动买卖」没打开'; if (P.lastReason !== why + '，强制打不执行') { P.lastReason = why + '，强制打不执行'; log(`${P.name || c}：${why}，强制打不执行`); } continue; } /* 11/3 审查：强制打以前只看紧急全停，官方暂停、两个雷达同时开、关掉手动买卖都挡不住 */
+    if (gate && !forced && Number(radarSet()['bscnft.auto']) !== 1 && await isNft(c).catch(() => true)) { if (!P.nftOffLog) { P.nftOffLog = 1; P.lastReason = '这是 NFT，你没开「NFT 自动铸造」，不打'; log(`跳过 ${P.name || c}：是 NFT，「NFT 自动铸造」没开（只开代币铸造不会打 NFT）`); } continue; } /* 她 11/3 13:10：用户没开 NFT 却铸到 NFT——以前 NFT 合约走代币铸造的开关，现在 NFT 一定要 NFT 开关；查不出是不是 NFT 也当 NFT（宁可不打） */
     if (gate && !forced && (radarOff() || Number(radarSet()['bsc.mintAuto']) !== 1)) { if (!P.pauseLogged) { P.pauseLogged = 1; log(`${P.name || c} 符合条件，但雷达设成暂停／不自动打，所以不打`); } continue; } /* 罗宾猫雷达 11/1 */
     if (!forced && !P.goLogged) { P.goLogged = 1; globalThis.xCheck?.(c, P.name).catch(() => {}); ownerHeavy(c, P.name).catch(() => {}); log(`進場 ${c}：${progress >= GO_PCT ? '進度過 ' + Math.round(GO_PCT * 100) + '%' : '讀不到進度、' + AG_MIN + ' 個以上錢包在打'}（累計 ${P.agents || 0} 個代理人、3 分鐘 ${P.burst || 0} 個），進度 ${progress > 0 ? Math.round(progress * 100) + '%' : '讀不到'}`); }
     // 防釣魚：① 同款合約 24 小時內被部署 3 次以上（批量發盤）不打 ② 進度要是很多人打出來的（至少 20 個不同錢包），不是項目方自己刷的
@@ -2197,7 +2198,7 @@ async function manualMints() {
 }
 // ── TG 指令：使用者直接在機器人打「賣 XXX」「賣 XXX 一半」「餘額」，幾秒內執行，不經過 Claude ──
 // ── 更新提醒（開源版才開；使用者 11/1 00:47：不自動更新，只提醒；用戶回 /update 才更新，更新前安檢＋sha256＋備份，新版起不來自動換回）──
-const UPD = { on: true, ver: '1.0.10', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
+const UPD = { on: true, ver: '1.0.11', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function updCheck(quiet = false) {
   if (!UPD.on) return null;

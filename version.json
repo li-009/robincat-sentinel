@@ -1,6 +1,6 @@
 {
-  "version": "1.0.10",
-  "sha256": "a2799bae24455f8648c72195864f5ca20097731173945fdabb044b12fbe4ce82",
+  "version": "1.0.11",
+  "sha256": "70bca0d9584bf5531b52f2ee11d500603dee4f35a5a83211c11bad7f48dae2e2",
   "files": {
     ".gitignore": "04f334bd6b478d850354fbcb041d2d573b2984bb2d3fcdd9bc8a4128ecd27915",
     "AI说明书.md": "a7b250f1bc666f158a0edfc08e25d3e47a4ff1dcab79f1476eebc85f2cc84d38",
@@ -11,7 +11,7 @@
     "login.mjs": "3bbdb56ae9cc050964613a71a47bc34e662a3c658e2f454c6dcc0130b5ecfa50",
     "plugin-host.mjs": "b6ef2e101ccfce75b7a4a63704abd9fcba421e49dc1f00b6ccb143127712d641",
     "plugins.mjs": "628243e35d24943ba0168a4b7f57ba8e8ea9cd9032047c3644ed5ec85ac99296",
-    "README.md": "f568a0b9c613cd54ce7d1106c587d97b1fd42dafa9aae51d98f69b3b7eed50a5",
+    "README.md": "495708852a4d575015af940e807587431158d37a373f527528be75e3d0296a49",
     "rh.mjs": "1f83f8db772f094a394519f72152f4624ed757bbe666c5fa1d3baa5214c8f60c",
     "setup.mjs": "4ccaf5c184fa693893c6a23cf94963e513c796bed88df3598c3dbf7b1e55500c",
     "setup_wallet2.bat": "b530714d88d90620b56b550c7581121201adf10bc0974b22f55a48204053f3f9",
@@ -19,17 +19,17 @@
     "start_hidden.vbs": "116f459e8fa5b31bddfd2d91766fe7d680810eac65188e8b76460ae09c52acd6",
     "start_loop.bat": "8a026219c7ecaa25a128a6a61f16306a20e7d2c4695df216149df619140a4ab1",
     "tg_login.bat": "1b358e1311fe5c0ef32580f47a150904f0028a4451b6409124f9eed46f81dbc9",
-    "watch.mjs": "a2799bae24455f8648c72195864f5ca20097731173945fdabb044b12fbe4ce82",
+    "watch.mjs": "70bca0d9584bf5531b52f2ee11d500603dee4f35a5a83211c11bad7f48dae2e2",
     "一键安装.bat": "dc686d756625768b8bbd2e21933908ecfcc1f6c4d5fb1966f14360ee03b5c04a",
-    "radar/main.cjs": "15ab8f14903077c405e63b2373d9beb578fa9a70f672fa75edd75614685261b6",
-    "radar/official.json": "d6671a447c51fc653cddbb1523e68baa05d484cca9315f0805d562aba99b1f0a",
-    "radar/official.sig": "e16acace47863e7e471ff7c5dae1d8ecc8d5b08132d05c28e564d6a077027e52",
-    "radar/package.json": "bac24de8606a5de76b896c38a3afa3531366bee345421929a1ab2d34a229fa8d",
+    "radar/main.cjs": "7d2a1c2055c9c75450e753c52acff46ebf1875b4b0902b921f2555c2cbaa111d",
+    "radar/official.json": "15e69770e55052b2c24948cb7429d07c74ef5f50db482a8f260f37411634919e",
+    "radar/official.sig": "aa9dcb8458d62d9e06229608b5d0bf611060e2a46fff4cda7b981f3ec86d8a64",
+    "radar/package.json": "3fb8cbc5b18e311be609d09472240290f920c8a9acc7cbf200a39f92a8e6a585",
     "radar/preload.cjs": "0b8b0a1548cead0d520a987f383151568fdbefab7bf59ba67481705c28cfabc0",
     "radar/settings_schema.json": "f5331ae1a457a68d9144eb02e5f01c4b23b72d33c8a6fa30eb72158a8a89acf0",
     "radar/启动罗宾猫雷达.vbs": "a2307b8d69d4de1347e1bc8c7604337586840dda45f2ddbeac0163a4b242e869",
     "radar/重启罗宾猫雷达.vbs": "80078f728e41d46915bfea82febf7f14c25db3372d030d04ffe39f3235497799",
-    "radar/ui/index.html": "36c875fd5b2ac3055cbfd319c2cf8082437da61eecb85fe844bfbaf15ea38797",
+    "radar/ui/index.html": "be95cc3af87b910a7293cb6ab05e0d9fc652cb5ecb19f919858e821e156362b4",
     "radar/ui/logo.ico": "21d35076465459c7a216581b26d6b371c0a4265244d4c202502ece25e284f9f5",
     "radar/ui/logo.png": "6d635534599ecac82ea99e05565efd0aca0d3c9deffa1f947ecf3eebd92ceeb4",
     "plugins/钱包总览.mjs": "ddaf41ca2404f562775b60f9e1ae961182eb449aaa102c12bee7c9e00cbfa7c0",
@@ -45,13 +45,6 @@
     "radar/air.cjs": "12c95328bb43111b5ab812db5cb79c4b5751354272bd2b19515b1462d45dd55d",
     "smartfind.mjs": "232718266027f0a2979a6a7111976399cba5ed0dbccc5f263ccdb77ac88da693"
   },
-  "notes": [
-    "🔍 新增代码扫描：代币详情会标出项目方能不能冻结交易、拉黑钱包、改税、增发、换掉合约；自动买会避开高风险的（设定可关）",
-    "🤖 新增「用你自己的 AI 审查」：一键复制合约审查重点给你自己的 AI",
-    "⛓ 修正链搞错：外挂呼叫 Robinhood 合约被送到 BNB Chain、搜寻把 Robinhood 合约当成 BNB Chain、TG 买入会买到错的链",
-    "👛 钱包登出时：不会再拿登出的钱包去买，也不会每次买都误报；断开提醒改成每 2 小时一次、最多 3 次",
-    "📱 视窗缩小时不会被切掉；白色主题的徽章、按钮、选单改成浅色",
-    "（包含 1.0.9：多钱包互相挤掉登入等修正）"
-  ],
+  "notes": "修正：只开「铸造代币」时，碰到 NFT 项目也会自动铸造（现在 NFT 一定要开「铸造 NFT」才会打）；Robinhood 的「铸造」开关改名为「铸造（代币和 NFT）」写清楚；聪明钱包删掉后「最近动作」不再显示，并新增「清除」按钮。",
   "critical": true
 }
