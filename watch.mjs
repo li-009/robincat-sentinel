@@ -2162,7 +2162,7 @@ async function manualMints() {
 }
 // ── TG 指令：使用者直接在機器人打「賣 XXX」「賣 XXX 一半」「餘額」，幾秒內執行，不經過 Claude ──
 // ── 更新提醒（開源版才開；使用者 11/1 00:47：不自動更新，只提醒；用戶回 /update 才更新，更新前安檢＋sha256＋備份，新版起不來自動換回）──
-const UPD = { on: true, ver: '1.0.7', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
+const UPD = { on: true, ver: '1.0.8', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function updCheck(quiet = false) {
   if (!UPD.on) return null;
@@ -2196,7 +2196,7 @@ async function doUpdateAll(v) {
   for (const [f] of got) { const src = join(DIR, f); if (existsSync(src)) { mkdirSync(dirname(join(bk, f)), { recursive: true }); copyFileSync(src, join(bk, f)); } }
   for (const [f, b] of got) { mkdirSync(dirname(join(DIR, f)), { recursive: true }); writeFileSync(join(DIR, f), b); }
   try { writeFileSync(join(DIR, 'data', 'update_pending.json'), JSON.stringify({ at: Date.now(), v: v.version, bk: bkName, files: got.map(([f]) => f) })); } catch {} /* 她 11/3：新版启动不正常 → 雷达自动换回旧版 */
-  writeFileSync(join(DIR, 'radar', 'official.json'), man); writeFileSync(join(DIR, 'radar', 'official.sig'), sig.toString('base64'));
+  writeFileSync(join(DIR, 'radar', 'official.json'), man); writeFileSync(join(DIR, 'radar', 'official.sig'), sig.toString('base64')); try { writeFileSync(join(DIR, 'version.json'), JSON.stringify(v, null, 2)); } catch {} /* 11/3：本机版本号也要跟着更新，不然画面一直以为是旧版 */
   const shell = got.some(([f]) => /^radar\/[^\/]+\.cjs$/.test(f)), ui = got.some(([f]) => f.startsWith('radar/'));
   if (shell || ui) writeFileSync(join(DIR, 'data', shell ? 'relaunch.req' : 'reload.req'), String(Date.now()));
   log(`一键更新：已换上 ${got.length} 个档案（v${v.version}），旧档备份在 data/${bkName}`);

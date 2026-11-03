@@ -1,4 +1,4 @@
-# 罗宾猫哨兵（RobinCat Sentinel）v1.0.7
+# 罗宾猫哨兵（RobinCat Sentinel）v1.0.8
 
 > **✨ 你的 AI 工具由你做主**
 
