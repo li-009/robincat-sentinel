@@ -38,4 +38,5 @@ contextBridge.exposeInMainWorld('radar', {
   order: (o) => ipcRenderer.invoke('order', o),
   open: (u) => ipcRenderer.invoke('open', u),
   notify: (t, b) => ipcRenderer.invoke('notify', t, b),
+  qr: (t) => ipcRenderer.invoke('qr', t),
 });

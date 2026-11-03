@@ -149,7 +149,7 @@ export function startRH(ctx) {
       if (!manual && spent(W.addr) + USD > RHC.dayUsd) { res.push(`[${W.name}] 今天额度用完`); continue; }
       const q = USD / px; const eb = await ethBal(W.addr); if (payG) { const ug = Number(await tokBal(USDG, W.addr)) / 1e6; if (ug < USD) { res.push(`[${W.name}] USDG 不够（有 ${ug.toFixed(2)}，要 ${USD}）`); continue; } if (eb != null && eb < 0.0002) { res.push(`[${W.name}] ETH 只剩 ${eb.toFixed(5)}，付不起手续费（用 USDG 买也要一点 ETH）`); continue; } } else if (eb != null && eb < q + 0.0003) { res.push(`[${W.name}] Robinhood 上的 ETH 不够（有 ${eb.toFixed(5)}，要 ${(q + 0.0003).toFixed(5)}）`); continue; }
       const b0 = await tokBal(c, W.addr);
-      const goRH = (sl) => W.baw(['market-order', 'swap', '--binanceChainId', '4663', '--fromTokenQty', payG ? USD.toFixed(2) : q.toFixed(6), '--fromToken', payG ? USDG : NATIVE, '--toToken', c, '--slippage', sl]); let sw = await goRH('auto'); if (!sw.j?.success) sw = await goRH('15'); /* 11/2 防夹：先用钱包自动滑点，买不进去才 15% */
+      const goRH = (sl) => W.baw(['market-order', 'swap', '--binanceChainId', '4663', '--fromTokenQty', payG ? USD.toFixed(2) : q.toFixed(6), '--fromToken', payG ? USDG : NATIVE, '--toToken', c, '--slippage', sl]); let sw = await goRH('auto'); if (!sw.j?.success && !(!sw.j && /timed? ?out|ETIMEDOUT|killed|SIGTERM/i.test(sw.t || ''))) sw = await goRH('15'); /* 11/3：逾时可能已成交，不再重买 */ /* 11/2 防夹：先用钱包自动滑点，买不进去才 15% */
       log(`[Robinhood][${W.name}] 买 ${sym}：${sw.t.slice(0, 300)}`);
       if (!sw.j?.success) { res.push(`[${W.name}] 买入失败：${String(sw.j?.error?.message || sw.t).slice(0, 80)}`); continue; }
       if (!manual) addSpent(W.addr, USD); /* 11/2 22:28 冲突：手动买以前会吃掉自动打的每日额度 */
@@ -257,6 +257,7 @@ export function startRH(ctx) {
     const why = []; if (!M.tpl) why.push('找不到一般人自己铸造的交易（可能要白名单或签名）');
     if (real < RHC.mintMinReal) why.push(`${RHC.mintWinMin} 分钟内真人钱包 ${real} 个（要 ${RHC.mintMinReal} 个）`);
     if (M.freshPct > RHC.mintMaxFresh) why.push(`新开钱包占 ${M.freshPct.toFixed(0)}%（上限 ${RHC.mintMaxFresh}%，可能是项目方自己刷）`);
+    if (M.tpl && BigInt(M.tpl.value || '0') > 0n && !(px > 0)) why.push('读不到 ETH 价格，算不出要花多少，先不打'); /* 11/3 安全审查：价格读不到时以前所有金额检查都会被跳过 */
     if (M.costUsd != null && M.costUsd > RHC.mintUsd) why.push(`一次铸造要约 ${M.costUsd.toFixed(1)}U（超过设定 ${RHC.mintUsd}U）`);
     const cs = globalThis.CUSTOM_SKIP?.({ chain: 'robinhood', type: 'mint', c, name: M.name, sym: M.sym, realBuyers: real }); if (cs) why.push('自订规则：' + cs);
     M.ok = !why.length; M.why = why.join('；') || '符合条件';
@@ -264,7 +265,7 @@ export function startRH(ctx) {
   }
   async function doMint(c, M, manual, capU = 0) {
     if (!M.tpl) return '没有可以照着做的铸造方式';
-    const px = await ethUsd(); const out = []; M.done = M.done || {};
+    const px = await ethUsd(); const out = []; M.done = M.done || {}; if (BigInt(M.tpl.value || '0') > 0n && !(px > 0)) return '读不到 ETH 价格，算不出要花多少，为了安全没有铸造（等一下再试）';
     for (const W of WALLETS) { if (M.done[W.addr]) continue;
       const dd = day(); const sp = (R.mintDay[dd] || {})[W.addr] || 0; if (!manual && sp + (M.costUsd || 0) > RHC.mintDayUsd) { out.push(`[${W.name}] 今天铸造额度用完`); continue; }
       const data = String(M.tpl.data).toLowerCase().split(M.tpl.from.slice(2)).join(W.addr.slice(2)); // 范本里如果写了对方的地址，换成我们自己的
@@ -276,7 +277,7 @@ export function startRH(ctx) {
       if (sim?.allowanceChanges?.length || sim?.authorityChanges?.length) { out.push(`[${W.name}] ⛔ 预演发现会授权或交出钱包权限，不铸（防盗）`); log(`[Robinhood 铸造] ${M.name || c} 预演有授权／权限变化，挡下`); continue; } /* 11/2 BDOG 被盗事件：有授权就不铸，手动也一样 */
       if ((sim?.balanceChanges || []).some((b) => lc(b.owner) === W.addr && !lc(b.contractAddress).startsWith('0xeeee') && Number(b.change) < 0)) { out.push(`[${W.name}] ⛔ 预演显示会扣你别的币，不铸`); continue; }
       if (!manual && !got) { out.push(`[${W.name}] 预演看不到我们会拿到东西，不铸`); continue; }
-      if (px > 0 && ethOut * px > (capU > 0 ? capU : Math.max(RHC.mintUsd, M.costUsd || 0) * 1.1 + 0.5)) { out.push(`[${W.name}] 预演要花 ${(ethOut * px).toFixed(1)}U，超过${capU > 0 ? '你这次填的 ' + capU + 'U' : '预期'}，不铸`); continue; }
+      if (ethOut > 0 && !(px > 0) || px > 0 && ethOut * px > (capU > 0 ? capU : RHC.mintUsd * 1.1 + 0.5)) /* 11/3：上限只看你设的金额，不再用项目方范本的价格往上加 */ { out.push(`[${W.name}] 预演要花 ${(ethOut * px).toFixed(1)}U，超过${capU > 0 ? '你这次填的 ' + capU + 'U' : '预期'}，不铸`); continue; }
       const x = await W.baw(['contract-call', 'execute', '--requestId', rid]); log(`[Robinhood 铸造][${W.name}] ${M.name || c}：${String(x.t).slice(0, 200)}`);
       if (!x.j?.success) { out.push(`[${W.name}] 送出失败：${String(x.j?.error?.message || x.t).slice(0, 80)}`); continue; }
       M.done[W.addr] = Date.now(); const cu = px > 0 ? Number(val) / 1e18 * px : 0; R.mintDay = { [dd]: { ...(R.mintDay[dd] || {}), [W.addr]: sp + cu } };
