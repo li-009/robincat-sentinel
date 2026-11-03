@@ -1579,6 +1579,7 @@ for (const c of S.forceAdd || []) FORCE.add(c); /* 雷达按的「强制打」�
 let RH = null; try { const { startRH } = await import('./rh.mjs?v=' + Date.now()); RH = startRH({ WALLETS, log, tg, S, save, radarOff }); globalThis.RH_APPLY = RH.apply; RADAR.at = 0; radarSet(); } catch (e) { log('Robinhood 模組載入失敗 ' + e.message); } /* 11/2：Robinhood Chain 自動打 */
 let BA = null; try { const { makeBscAnalyze } = await import('./bscanal.mjs?v=' + Date.now()); BA = makeBscAnalyze({ rpc, rpcBatch, log }); } catch (e) { log('BSC 深度检查模组载入失败 ' + e.message); } /* 11/2 她：BSC 也要捆绑检查 */
 let BN = null; try { const { startBscNft } = await import('./bscnft.mjs?v=' + Date.now()); BN = startBscNft({ rpc, rpcBatch, WALLETS, log, tg, S, save, radarOff, radarSet, previewExec, bnbUsd }); } catch (e) { log('BSC NFT 载入失败 ' + e.message); } /* 11/2：BSC NFT 铸造 */
+try { if (existsSync(join(DIR, '.sign', 'ave_key.txt'))) { const { startAve } = await import('./ave.mjs?v=' + Date.now()); startAve({ DIR, log, tg: tgSay }); } } catch (e) { log('AVE 资料载入失败 ' + e.message); } /* 11/3：AVE 合作资料（只有放了金钥的电脑会跑） */
 try { const { startSmart } = await import('./smart.mjs?v=' + Date.now()); startSmart({ rpc, log, tg, S, save, radarSet }); } catch (e) { log('聪明钱包载入失败 ' + e.message); } /* 11/2：聪明钱包监控，本地跑 */
 try { const { startSmartFind } = await import('./smartfind.mjs?v=' + Date.now()); startSmartFind({ DIR, rpc, log }); } catch (e) { log('找聪明钱载入失败 ' + e.message); } /* 她 11/2 22:49 */
 try { const { startAir } = await import('./air.mjs?v=' + Date.now()); startAir({ DIR, WALLETS, rpc, log, tgSay, radarSet }); } catch (e) { log('空投页载入失败 ' + e.message); } /* 她 11/2 23:00 */
@@ -2228,7 +2229,7 @@ async function manualMints() {
 }
 // ── TG 指令：使用者直接在機器人打「賣 XXX」「賣 XXX 一半」「餘額」，幾秒內執行，不經過 Claude ──
 // ── 更新提醒（開源版才開；使用者 11/1 00:47：不自動更新，只提醒；用戶回 /update 才更新，更新前安檢＋sha256＋備份，新版起不來自動換回）──
-const UPD = { on: true, ver: '1.0.14', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
+const UPD = { on: true, ver: '1.0.15', repo: 'nancyc0813-maker/robincat-sentinel', group: 't.me/nancy_c0813' }; /* 使用者 11/1 00:47：只提醒不自動更新；引導用戶加入使用者的 TG 群 */
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function updCheck(quiet = false) {
   if (!UPD.on) return null;
