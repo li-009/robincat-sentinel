@@ -780,6 +780,19 @@
    "sug": 1
   },
   {
+   "k": "risk.codeScan",
+   "g": "risk",
+   "type": "bool",
+   "def": 1,
+   "min": 0,
+   "max": 1,
+   "zh": "代码扫描挡危险合约",
+   "en": "Code scan blocks risky contracts",
+   "dzh": "自动买之前先读合约程式码：项目方还握有权限、而且能冻结交易／拉黑钱包／换掉合约的，就不自动买（手动买只提醒）",
+   "den": "Before auto-buying, read the contract code: if the owner still controls it and can freeze trading, blacklist wallets or swap the contract, skip the auto-buy (manual buys just get a warning)",
+   "sug": 1
+  },
+  {
    "k": "risk.blacklist",
    "g": "risk",
    "type": "bool",

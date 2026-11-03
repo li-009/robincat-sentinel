@@ -275,6 +275,26 @@ ipcMain.handle('news', async () => { if (Date.now() - NEWS.at < 60e3 && NEWS.ite
 ipcMain.handle('hist', (e, k) => { if (!HIST) HIST = readJSON(HISTF, {}); return (HIST[String(k)] || []).slice(-600); });
 // 代币详情：DexScreener 行情 + GeckoTerminal K 线 + 貔貅检查；都是公开免费接口，1 分钟缓存
 const TD = new Map();
+/* 11/3 群友建议「代码级审查」：本地读合约机器码找危险功能（不用 AI、一秒内完成）。
+   找的是函式「入口」有没有出现：能冻结交易、拉黑钱包、改税率、增发、改单笔／持有上限、可升级（换掉合约程式）；再看项目方有没有放弃权限。
+   只是提醒，不能保证安全；有源码的可以按「用你自己的 AI 审查」做深度检查 */
+const CS_SEL = { pause: ['8456cb59', '16c38b3c', '1031e36e', 'c2e5ec04', 'f275f64b', '8f70ccf7', '7185f163', 'e01af92c'], blacklist: ['f9f92be4', '455a4396', '153b0d1e', '44337ea1', '9cfe42da', '9c0db5f3', 'd34628cc', '00b8cf2a', '342aa8b5', 'a0e38492', 'fb2f3492', 'ca6507af', '8d1fdf2f', 'e724529c'], tax: ['69fe0e2d', '0b78f9c0', '061c82d0', '0cc835a3', '8b4cee08', '8cd09d50', 'dc1052e2', 'c647b20e', '6db79437', '52f7c988', 'c17b5b8c', '8095d564', '2e5bb6ff', 'c6d69a30', '95927c25', 'dcf7aef3'], mint: ['40c10f19', '4e6ec247', '449a52f8', 'cc872b66'], upgrade: ['3659cfe6', '4f1ef286', 'd784d426'], maxtx: ['ec28438a', 'ea1644d5', '5d0044ca', 'd543dbeb', '203e727e', 'c18bc195'] };
+const CS_RPC = { bsc: ['https://bsc-dataseed.bnbchain.org', 'https://bsc-rpc.publicnode.com', 'https://bsc-dataseed1.defibit.io'], robinhood: ['https://rpc.mainnet.chain.robinhood.com', 'https://robinhood.drpc.org', 'https://4663.rpc.thirdweb.com'] };
+const CSC = new Map();
+async function csRpc(net, method, params) { for (const u of CS_RPC[net]) { try { const j = await (await fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(8000) })).json(); if (j && 'result' in j) return j.result; } catch {} } return null; }
+async function codeScan(net, addr) {
+  const k = net + addr, c = CSC.get(k); if (c && Date.now() - c.at < 30 * 60e3) return c.v;
+  let code = String(await csRpc(net, 'eth_getCode', [addr, 'latest']) || '0x').toLowerCase(); if (code.length <= 2) return null;
+  const slot = await csRpc(net, 'eth_getStorageAt', [addr, '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc', 'latest']); const impl = slot && /^0x0*[1-9a-f]/.test(slot) ? '0x' + String(slot).slice(-40) : '';
+  if (impl) { const ic = String(await csRpc(net, 'eth_getCode', [impl, 'latest']) || '').toLowerCase(); if (ic.length > 2) code += ic.slice(2); }
+  const has = (g) => CS_SEL[g].some((s) => code.includes('63' + s));
+  const ow = await csRpc(net, 'eth_call', [{ to: addr, data: '0x8da5cb5b' }, 'latest']); const owner = ow && ow.length >= 66 ? '0x' + ow.slice(26, 66) : ''; const renounced = !!owner && /^0x(0{40}|0{36}dead)$/.test(owner);
+  const live = !renounced; const f = [];
+  if (impl) f.push({ k: 'upgrade', lv: 3 }); else if (has('upgrade')) f.push({ k: 'upgrade', lv: live ? 3 : 1 });
+  if (has('pause')) f.push({ k: 'pause', lv: live ? 3 : 1 }); if (has('blacklist')) f.push({ k: 'blacklist', lv: live ? 3 : 1 });
+  if (has('tax')) f.push({ k: 'tax', lv: live ? 2 : 1 }); if (has('mint')) f.push({ k: 'mint', lv: live ? 2 : 1 }); if (has('maxtx')) f.push({ k: 'maxtx', lv: 1 });
+  const v = { flags: f, owner, renounced, proxy: !!impl, size: Math.round(code.length / 2), lv: f.reduce((a, x) => Math.max(a, x.lv), 0) };
+  CSC.set(k, { at: Date.now(), v }); if (CSC.size > 400) CSC.delete(CSC.keys().next().value); return v; }
 ipcMain.handle('tokenDetail', async (e, net, addr) => { net = net === 'robinhood' ? 'robinhood' : 'bsc'; addr = String(addr || '').toLowerCase(); if (!/^0x[0-9a-f]{40}$/.test(addr)) return { err: '合约地址格式不对' };
   const k = net + addr, c = TD.get(k); if (c && Date.now() - c.at < 60e3) return c.v;
   const out = { net, addr, pair: null, candles: [], safety: null, err: '' };
@@ -286,6 +306,7 @@ ipcMain.handle('tokenDetail', async (e, net, addr) => { net = net === 'robinhood
   const gnet = net === 'bsc' ? 'bsc' : 'robinhood';
   const tasks = [];
   if (pool) tasks.push((async () => { try { const j = await (await fetch(`https://api.geckoterminal.com/api/v2/networks/${gnet}/pools/${pool}/ohlcv/minute?aggregate=5&limit=144`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(12000) })).json(); out.candles = (j.data?.attributes?.ohlcv_list || []).map((r) => ({ t: r[0] * 1000, o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] })).reverse(); } catch {} })());
+  tasks.push((async () => { try { out.scan = await codeScan(net, addr); } catch {} })());
   if (net === 'bsc') tasks.push((async () => { try { const j = await (await fetch(`https://api.honeypot.is/v2/IsHoneypot?address=${addr}&chainID=56`, { signal: AbortSignal.timeout(12000) })).json(); out.safety = { honeypot: j.honeypotResult?.isHoneypot ?? null, buyTax: j.simulationResult?.buyTax ?? null, sellTax: j.simulationResult?.sellTax ?? null, ok: !!j.simulationSuccess, holders: j.token?.totalHolders ?? null }; } catch {} })());
   await Promise.all(tasks);
   if (out.pair || out.candles.length) TD.set(k, { at: Date.now(), v: out }); if (TD.size > 200) TD.delete(TD.keys().next().value);

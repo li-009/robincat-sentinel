@@ -140,9 +140,10 @@ export function startRH(ctx) {
   async function tokBal(c, a) { return big(await call(c, '0x70a08231' + wa(a))); }
 
   async function buy(c, sym, facts, manual, usdIn, opt = {}) { const USD = Number(usdIn) > 0 ? Number(usdIn) : RHC.usd; const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168', payG = !!opt.usdg; /* 她 11/2 19:27：Robinhood 可以直接用 USDG 付，不换成 ETH */
+    if (!manual) { const cr = await globalThis.CODE_RISK?.('robinhood', c).catch(() => ''); if (cr) return cr + '，不自动买'; } /* 11/3 代码扫描（手动买只在画面提醒，不挡） */
     const px = await ethUsd(); if (!(px > 0)) return '读不到 ETH 价格';
     const res = [];
-    const WL = manual ? [WALLETS.find((x) => x.addr === lc(opt.w || '')) || WALLETS[0]].filter(Boolean) : WALLETS; /* 11/2 21:50 逆向：手动／一键买以前会让「每个钱包」都买一次 → 只用你选的钱包（没选就第一个） */
+    const WL = manual ? [WALLETS.find((x) => x.addr === lc(opt.w || '')) || WALLETS.find((x) => !x.off) || WALLETS[0]].filter(Boolean) : WALLETS; /* 11/3：没指定钱包时用第一个有登入的 */ /* 11/2 21:50 逆向：手动／一键买以前会让「每个钱包」都买一次 → 只用你选的钱包（没选就第一个） */
     const sandPx = manual ? ((await dsInfo([c]).catch(() => new Map())).get(c)?.price || 0) : 0; /* 防夹提醒：买前市价 */
     for (const W of WL) {
       if (!manual && spent(W.addr) + USD > RHC.dayUsd) { res.push(`[${W.name}] 今天额度用完`); continue; }
